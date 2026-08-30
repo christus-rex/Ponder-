@@ -222,7 +222,7 @@ create policy creator_profiles_public_read on public.creator_profiles for select
 create policy creator_profiles_insert_own on public.creator_profiles for insert with check (user_id = auth.uid());
 create policy creator_profiles_update_own on public.creator_profiles for update using (user_id = auth.uid()) with check (user_id = auth.uid());
 
-create policy worlds_read_visible on public.worlds for select using (published_at is not null or owner_user_id = auth.uid());
+create policy worlds_read_visible on public.worlds for select using (owner_user_id = auth.uid() or (published_at is not null and visibility = 'public'));
 create policy worlds_insert_own on public.worlds for insert with check (owner_user_id = auth.uid());
 create policy worlds_update_own on public.worlds for update using (owner_user_id = auth.uid()) with check (owner_user_id = auth.uid());
 create policy worlds_delete_own on public.worlds for delete using (owner_user_id = auth.uid());
@@ -230,7 +230,7 @@ create policy worlds_delete_own on public.worlds for delete using (owner_user_id
 create policy world_members_read_related on public.world_members for select using (
   user_id = auth.uid() or exists (select 1 from public.worlds w where w.id = world_id and w.owner_user_id = auth.uid())
 );
-create policy world_members_join_self on public.world_members for insert with check (user_id = auth.uid());
+create policy world_members_join_self on public.world_members for insert with check (\n  user_id = auth.uid() and exists (select 1 from public.worlds w where w.id = world_id and w.published_at is not null and w.visibility = 'public')\n);
 create policy world_members_leave_self on public.world_members for delete using (user_id = auth.uid());
 
 create policy follows_read_related on public.follows for select using (follower_user_id = auth.uid() or followed_user_id = auth.uid());
