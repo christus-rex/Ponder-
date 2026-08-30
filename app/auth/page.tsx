@@ -1,35 +1,130 @@
 import { signIn, signUp } from "./actions";
+import styles from "./auth.module.css";
 
 export default function AuthPage() {
   return (
-    <main className="shell">
-      <section className="hero" style={{ minHeight: 320 }}>
-        <div className="eyebrow">PONDER+ IDENTITY</div>
-        <h1 style={{ fontSize: "clamp(46px, 8vw, 82px)" }}>Enter as yourself.</h1>
-        <p className="heroCopy">
-          Authentication is the continuity layer for conversations, reconnects,
-          reputation, and eventually portable wallet identity.
-        </p>
+    <main className={styles.authShell}>
+      <section className={styles.brandPanel}>
+        <div className={styles.brandRow}>
+          <span className={styles.brandMark}>P+</span>
+          <span>Ponder+</span>
+        </div>
+
+        <div className={styles.brandCopy}>
+          <p className={styles.kicker}>AUTHENTIC SOCIAL · 18+</p>
+          <h1>Come as yourself.</h1>
+          <p>
+            Your Ponder+ identity keeps conversations, connections, room access,
+            reputation, and future wallet features continuous across the
+            experience.
+          </p>
+        </div>
+
+        <div className={styles.trustRow} aria-label="Ponder+ identity promises">
+          <span className={styles.trustChip}>Private by default</span>
+          <span className={styles.trustChip}>One identity across devices</span>
+          <span className={styles.trustChip}>Adult community</span>
+        </div>
       </section>
 
-      <section className="roomGrid" style={{ paddingBottom: 80 }}>
-        <form className="roomCard" action={signUp}>
-          <span className="roomMeta">CREATE ACCOUNT · 18+</span>
-          <h3>Join Ponder+</h3>
-          <label>Email<input name="email" type="email" required /></label>
-          <label>Password<input name="password" type="password" minLength={8} required /></label>
-          <label>Date of birth<input name="date_of_birth" type="date" required /></label>
-          <p className="walletNote">Age is self-attested in v0.2. Stronger verification is a later safety milestone.</p>
-          <button className="roomButton" type="submit">Create account</button>
-        </form>
+      <section className={styles.loginPanel} aria-label="Ponder+ sign in">
+        <div className={styles.loginCard}>
+          <div className={styles.cardMeta}>
+            <span className={styles.secureLabel}>
+              <span className={styles.secureDot} aria-hidden="true" />
+              Secure credential login
+            </span>
+            <span className={styles.ageBadge}>18+</span>
+          </div>
 
-        <form className="roomCard" action={signIn}>
-          <span className="roomMeta">RETURN</span>
-          <h3>Sign in</h3>
-          <label>Email<input name="email" type="email" required /></label>
-          <label>Password<input name="password" type="password" required /></label>
-          <button className="roomButton" type="submit">Continue</button>
-        </form>
+          <h2>Welcome back.</h2>
+          <p className={styles.cardIntro}>
+            Sign in to continue to your Ponder+ experience.
+          </p>
+
+          <form className={styles.form} action={signIn}>
+            <label className={styles.field}>
+              Email
+              <input
+                name="email"
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                placeholder="you@example.com"
+                required
+              />
+            </label>
+
+            <label className={styles.field}>
+              Password
+              <input
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                placeholder="Enter your password"
+                required
+              />
+            </label>
+
+            <button className={styles.primaryButton} type="submit">
+              Log in to Ponder+
+            </button>
+          </form>
+
+          <div className={styles.divider}>NEW HERE?</div>
+
+          <details className={styles.createPanel}>
+            <summary>Create a Ponder+ account</summary>
+            <form className={styles.createForm} action={signUp}>
+              <label className={styles.field}>
+                Email
+                <input
+                  name="email"
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  required
+                />
+              </label>
+
+              <label className={styles.field}>
+                Password
+                <input
+                  name="password"
+                  type="password"
+                  minLength={8}
+                  autoComplete="new-password"
+                  required
+                />
+              </label>
+
+              <label className={styles.field}>
+                Date of birth
+                <input
+                  name="date_of_birth"
+                  type="date"
+                  autoComplete="bday"
+                  required
+                />
+              </label>
+
+              <p className={styles.note}>
+                Ponder+ is for adults 18 and older. Age is self-attested in this
+                release; stronger verification remains a safety milestone.
+              </p>
+
+              <button className={styles.secondaryButton} type="submit">
+                Create account
+              </button>
+            </form>
+          </details>
+
+          <div className={styles.cardFooter}>
+            <a href="/terms">Terms</a>
+            <a href="/safety">Safety</a>
+            <span>Protected by Ponder+ Identity</span>
+          </div>
+        </div>
       </section>
     </main>
   );
