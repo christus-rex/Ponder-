@@ -15,6 +15,11 @@ import {
 export type RoomBrainServerMessage =
   | {
       version: typeof ROOM_BRAIN_PROTOCOL_VERSION;
+      type: 'snapshot';
+      snapshot: RoomBrainSnapshot;
+    }
+  | {
+      version: typeof ROOM_BRAIN_PROTOCOL_VERSION;
       type: 'ack';
       commandId: string;
       sequence: number;

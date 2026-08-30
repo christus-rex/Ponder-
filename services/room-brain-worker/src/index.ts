@@ -1,6 +1,7 @@
 import { DurableObject } from "cloudflare:workers";
 import {
   applyRoomBrainCommand,
+  buildRoomBrainSnapshot,
   encodeRoomBrainMessage,
   handleRoomBrainClientMessage,
   initialRoomBrainProtocolState,
@@ -86,6 +87,15 @@ export class RoomBrainDurableObject extends DurableObject<Env> {
     this.ctx.acceptWebSocket(server);
     server.serializeAttachment(attachment);
 
+    const protocol = await this.loadProtocol();
+    server.send(
+      encodeRoomBrainMessage({
+        version: 1,
+        type: "snapshot",
+        snapshot: buildRoomBrainSnapshot(protocol.room),
+      } satisfies RoomBrainServerMessage)
+    );
+
     return new Response(null, {
       status: 101,
       webSocket: client,
@@ -129,7 +139,7 @@ export class RoomBrainDurableObject extends DurableObject<Env> {
     }
 
     if (result.broadcast) {
-      this.broadcast(result.broadcast, webSocket);
+      this.broadcast(result.broadcast);
     }
   }
 
@@ -184,13 +194,10 @@ export class RoomBrainDurableObject extends DurableObject<Env> {
     });
   }
 
-  private broadcast(
-    message: RoomBrainServerMessage,
-    except?: WebSocket
-  ): void {
+  private broadcast(message: RoomBrainServerMessage): void {
     const encoded = encodeRoomBrainMessage(message);
     for (const socket of this.ctx.getWebSockets()) {
-      if (socket !== except) socket.send(encoded);
+      socket.send(encoded);
     }
   }
 }
@@ -228,7 +235,6 @@ function readVerifiedAttachment(headers: Headers): ConnectionAttachment | null {
 
   return { roomId, userId, role, connectionId, tokenExp };
 }
-
 
 function offersPonderProtocol(protocolHeader: string | null): boolean {
   return Boolean(
