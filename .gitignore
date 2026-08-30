@@ -1,8 +1,8 @@
-.next/
 node_modules/
+.next/
 coverage/
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
 npm-debug.log*
 .DS_Store

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ponder+ Live AI Translator</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <span class="eyebrow">PONDER+ · LIVE ROOM LAB</span>
+      <h1>Live AI Translator</h1>
+      <p>Speak naturally. Ponder+ streams your microphone to a realtime translation session and returns translated audio plus live captions.</p>
+    </header>
+
+    <section class="controls" aria-label="Translator controls">
+      <label>
+        Translate into
+        <select id="targetLanguage"></select>
+      </label>
+      <button id="toggle" type="button">Start translating</button>
+      <span id="status" class="status" data-state="idle">Idle</span>
+    </section>
+
+    <section class="transcripts">
+      <article>
+        <span class="label">YOU SAID</span>
+        <p id="sourceTranscript" class="transcript" aria-live="polite">—</p>
+      </article>
+      <article class="translated">
+        <span class="label">PONDER+ TRANSLATION</span>
+        <p id="translatedTranscript" class="transcript" aria-live="polite">—</p>
+      </article>
+    </section>
+
+    <p class="privacy">Your OpenAI API key never enters the browser. The demo server mints a short-lived client secret for the selected language.</p>
+    <audio id="translatedAudio" autoplay></audio>
+  </main>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

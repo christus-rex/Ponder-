@@ -1,13 +1,20 @@
 {
   "name": "ponder-plus",
-  "version": "0.1.0",
   "private": true,
+  "version": "0.1.0",
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "translator:demo": "node demo/server.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "npm run test:unit && npm run test:translator",
+    "test:unit": "vitest run",
+    "test:translator": "node --test test/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=20.9"
   },
   "dependencies": {
     "@base-org/account": "2.5.5",
