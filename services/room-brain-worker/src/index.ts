@@ -36,9 +36,12 @@ export default {
     if (!match) return new Response("Not found", { status: 404 });
 
     const roomId = decodeURIComponent(match[1]!);
-    const token = extractAuthorizationToken(
-      request.headers.get("Sec-WebSocket-Protocol")
-    );
+    const protocolHeader = request.headers.get("Sec-WebSocket-Protocol");
+    if (!offersPonderProtocol(protocolHeader)) {
+      return new Response("Ponder WebSocket protocol required", { status: 400 });
+    }
+
+    const token = extractAuthorizationToken(protocolHeader);
     if (!token) return new Response("Missing realtime authorization", { status: 401 });
 
     let payload: RoomBrainTokenPayload;
@@ -114,11 +117,8 @@ export class RoomBrainDurableObject extends DurableObject<Env> {
       return;
     }
 
-    if (attachment.tokenExp <= Math.floor(Date.now() / 1000)) {
-      webSocket.close(1008, "Realtime authorization expired");
-      return;
-    }
-
+    // tokenExp limits replay at handshake time. Once the connection is accepted,
+    // the verified attachment authorizes the lifetime of this WebSocket session.
     const protocol = await this.loadProtocol();
     const result = handleRoomBrainClientMessage(protocol, attachment, message);
 
@@ -227,4 +227,14 @@ function readVerifiedAttachment(headers: Headers): ConnectionAttachment | null {
   }
 
   return { roomId, userId, role, connectionId, tokenExp };
+}
+
+
+function offersPonderProtocol(protocolHeader: string | null): boolean {
+  return Boolean(
+    protocolHeader
+      ?.split(",")
+      .map((value) => value.trim())
+      .includes("ponder-v1")
+  );
 }
