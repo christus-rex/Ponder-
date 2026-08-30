@@ -7,11 +7,11 @@ import { handleRoomBrainClientMessage } from '../src/room-brain-transport.ts';
 const host = { userId: 'host-1', role: 'host' } as const;
 const viewer = { userId: 'viewer-1', role: 'viewer' } as const;
 
-function raw(commandId: string, command: object, expectedSequence?: number) {
+function raw(commandId: string, command: object, expectedSequence: number) {
   return JSON.stringify({
     version: 1,
     commandId,
-    ...(expectedSequence === undefined ? {} : { expectedSequence }),
+    expectedSequence,
     command
   });
 }
@@ -70,12 +70,29 @@ test('stale expected sequence returns a snapshot for resync', () => {
   }
 });
 
+test('unsequenced command is rejected as an invalid message', () => {
+  const protocol = initialRoomBrainProtocolState(initialRoomBrainState());
+  const result = handleRoomBrainClientMessage(
+    protocol,
+    viewer,
+    JSON.stringify({
+      version: 1,
+      commandId: 'cmd_join_3999',
+      command: { type: 'join', userId: 'viewer-1', role: 'viewer' }
+    })
+  );
+
+  assert.equal(result.reply.type, 'error');
+  if (result.reply.type === 'error') assert.equal(result.reply.code, 'invalid_message');
+  assert.equal(result.protocol.room.sequence, 0);
+});
+
 test('spoofed user command returns forbidden without state change', () => {
   const protocol = initialRoomBrainProtocolState(initialRoomBrainState());
   const result = handleRoomBrainClientMessage(
     protocol,
     viewer,
-    raw('cmd_join_3004', { type: 'join', userId: 'other-user', role: 'viewer' })
+    raw('cmd_join_3004', { type: 'join', userId: 'other-user', role: 'viewer' }, 0)
   );
 
   assert.equal(result.reply.type, 'error');
@@ -99,7 +116,7 @@ test('valid but impossible room-state command is rejected without leaking intern
   const result = handleRoomBrainClientMessage(
     protocol,
     viewer,
-    raw('cmd_seat_3001', { type: 'request_seat', userId: 'viewer-1' })
+    raw('cmd_seat_3001', { type: 'request_seat', userId: 'viewer-1' }, 0)
   );
 
   assert.equal(result.reply.type, 'error');

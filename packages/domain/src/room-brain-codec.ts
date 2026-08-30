@@ -37,14 +37,14 @@ export function decodeRoomBrainClientMessage(
   if (typeof commandId !== 'string') {
     throw new Error('Room Brain command ID must be a string');
   }
-  if (expectedSequence !== undefined && typeof expectedSequence !== 'number') {
+  if (typeof expectedSequence !== 'number') {
     throw new Error('Expected sequence must be a number');
   }
 
   const envelope: RoomBrainClientEnvelope = {
     version,
     commandId,
-    ...(expectedSequence === undefined ? {} : { expectedSequence }),
+    expectedSequence,
     command
   };
   validateEnvelope(envelope);
