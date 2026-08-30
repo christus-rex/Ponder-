@@ -17,6 +17,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
+  const { data: canEnter, error: accessError } = await supabase.rpc(
+    "current_user_can_enter",
+  );
+
+  if (accessError) {
+    return NextResponse.json(
+      { error: "Authorization service unavailable." },
+      { status: 503 },
+    );
+  }
+
+  if (!canEnter) {
+    return NextResponse.json(
+      { error: "Complete onboarding before using live translation." },
+      { status: 403 },
+    );
+  }
+
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
