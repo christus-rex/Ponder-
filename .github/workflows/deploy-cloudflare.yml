@@ -35,7 +35,6 @@ jobs:
           cache: npm
 
       - name: Check production configuration
-        id: config
         shell: bash
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -51,30 +50,28 @@ jobs:
           [[ -z "${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:-}" ]] && missing+=("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY")
 
           if (( ${#missing[@]} > 0 )); then
-            echo "ready=false" >> "$GITHUB_OUTPUT"
             {
-              echo "## Full Ponder+ deployment is configured but not activated"
+              echo "## Ponder+ production deployment blocked"
               echo
-              echo "Add the following repository Actions secrets/variables, then re-run this workflow:"
+              echo "Missing required GitHub Actions secrets/variables:"
               printf -- "- %s\n" "${missing[@]}"
               echo
-              echo "No secret values were printed or persisted by this workflow."
+              echo "The deployment was not attempted. No secret values were printed."
             } >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "ready=true" >> "$GITHUB_OUTPUT"
-            echo "Production configuration is present." >> "$GITHUB_STEP_SUMMARY"
+
+            echo "::error title=Ponder+ deployment blocked::Missing required production configuration: ${missing[*]}"
+            exit 1
           fi
 
+          echo "Production configuration is present." >> "$GITHUB_STEP_SUMMARY"
+
       - name: Install application dependencies
-        if: steps.config.outputs.ready == 'true'
         run: npm ci
 
       - name: Install Cloudflare adapter without changing lockfile
-        if: steps.config.outputs.ready == 'true'
         run: npm install --no-save --package-lock=false @opennextjs/cloudflare@latest wrangler@latest
 
       - name: Generate Cloudflare runtime configuration
-        if: steps.config.outputs.ready == 'true'
         shell: bash
         run: |
           cat > open-next.config.ts <<'CONFIG'
@@ -101,7 +98,6 @@ jobs:
           CONFIG
 
       - name: Verify web application
-        if: steps.config.outputs.ready == 'true'
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
@@ -113,7 +109,6 @@ jobs:
           npm run test:web
 
       - name: Build full-stack Worker
-        if: steps.config.outputs.ready == 'true'
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
@@ -123,7 +118,6 @@ jobs:
         run: npx opennextjs-cloudflare build
 
       - name: Deploy authenticated Ponder+ to Cloudflare Workers
-        if: steps.config.outputs.ready == 'true'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
