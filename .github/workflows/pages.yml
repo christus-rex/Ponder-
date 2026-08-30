@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "pages/**"
+      - "preview/**"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -34,7 +34,7 @@ jobs:
       - name: Upload public preview
         uses: actions/upload-pages-artifact@v4
         with:
-          path: pages
+          path: preview
 
       - name: Deploy to GitHub Pages
         id: deployment
