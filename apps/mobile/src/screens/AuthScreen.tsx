@@ -58,76 +58,97 @@ export function AuthScreen({ client }: Props) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.eyebrow}>PONDER+ IDENTITY</Text>
-      <Text style={styles.title}>
-        {mode === "sign_in" ? "Welcome back." : "Create your identity."}
-      </Text>
-      <Text style={styles.body}>
-        One Ponder+ account now controls your profile, rooms, connections, and
-        future wallet identity across web and mobile.
-      </Text>
+      <View style={styles.brandRow}>
+        <View style={styles.brandMark}>
+          <Text style={styles.brandMarkText}>P+</Text>
+        </View>
+        <Text style={styles.brandName}>Ponder+</Text>
+        <Text style={styles.ageBadge}>18+</Text>
+      </View>
 
-      <TextInput
-        autoCapitalize="none"
-        autoComplete="email"
-        keyboardType="email-address"
-        onChangeText={setEmail}
-        placeholder="Email"
-        placeholderTextColor="#8f7e89"
-        style={styles.input}
-        value={email}
-      />
-      <TextInput
-        autoCapitalize="none"
-        onChangeText={setPassword}
-        placeholder="Password"
-        placeholderTextColor="#8f7e89"
-        secureTextEntry
-        style={styles.input}
-        value={password}
-      />
+      <View style={styles.panel}>
+        <Text style={styles.eyebrow}>SECURE CREDENTIAL LOGIN</Text>
+        <Text style={styles.title}>
+          {mode === "sign_in" ? "Welcome back." : "Create your identity."}
+        </Text>
+        <Text style={styles.body}>
+          One Ponder+ account connects your profile, rooms, connections, and
+          future wallet identity across web and mobile.
+        </Text>
 
-      {mode === "sign_up" ? (
         <TextInput
           autoCapitalize="none"
-          onChangeText={setDateOfBirth}
-          placeholder="Date of birth · YYYY-MM-DD"
+          autoComplete="email"
+          keyboardType="email-address"
+          onChangeText={setEmail}
+          placeholder="Email"
           placeholderTextColor="#8f7e89"
           style={styles.input}
-          value={dateOfBirth}
+          value={email}
         />
-      ) : null}
+        <TextInput
+          autoCapitalize="none"
+          autoComplete={mode === "sign_in" ? "current-password" : "new-password"}
+          onChangeText={setPassword}
+          placeholder="Password"
+          placeholderTextColor="#8f7e89"
+          secureTextEntry
+          style={styles.input}
+          value={password}
+        />
 
-      {message ? <Text style={styles.message}>{message}</Text> : null}
+        {mode === "sign_up" ? (
+          <TextInput
+            autoCapitalize="none"
+            onChangeText={setDateOfBirth}
+            placeholder="Date of birth · YYYY-MM-DD"
+            placeholderTextColor="#8f7e89"
+            style={styles.input}
+            value={dateOfBirth}
+          />
+        ) : null}
 
-      <Pressable
-        accessibilityRole="button"
-        disabled={busy}
-        onPress={submit}
-        style={styles.primaryButton}
-      >
-        {busy ? (
-          <ActivityIndicator />
-        ) : (
-          <Text style={styles.primaryButtonText}>
-            {mode === "sign_in" ? "Sign in" : "Create account"}
+        {message ? <Text style={styles.message}>{message}</Text> : null}
+
+        <Pressable
+          accessibilityRole="button"
+          disabled={busy}
+          onPress={submit}
+          style={({ pressed }) => [
+            styles.primaryButton,
+            pressed && !busy ? styles.primaryButtonPressed : null,
+            busy ? styles.buttonDisabled : null,
+          ]}
+        >
+          {busy ? (
+            <ActivityIndicator />
+          ) : (
+            <Text style={styles.primaryButtonText}>
+              {mode === "sign_in" ? "Log in to Ponder+" : "Create account"}
+            </Text>
+          )}
+        </Pressable>
+
+        <Pressable
+          accessibilityRole="button"
+          onPress={() =>
+            setMode((current) =>
+              current === "sign_in" ? "sign_up" : "sign_in",
+            )
+          }
+          style={styles.secondaryButton}
+        >
+          <Text style={styles.secondaryButtonText}>
+            {mode === "sign_in"
+              ? "New here? Create an account"
+              : "Already have an account? Log in"}
           </Text>
-        )}
-      </Pressable>
+        </Pressable>
 
-      <Pressable
-        accessibilityRole="button"
-        onPress={() =>
-          setMode((current) => (current === "sign_in" ? "sign_up" : "sign_in"))
-        }
-        style={styles.secondaryButton}
-      >
-        <Text style={styles.secondaryButtonText}>
-          {mode === "sign_in"
-            ? "Need an account? Create one"
-            : "Already have an account? Sign in"}
+        <Text style={styles.identityNote}>
+          Protected by the central Ponder+ identity service.
         </Text>
-      </Pressable>
+      </View>
     </View>
   );
 }
@@ -136,15 +157,57 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#0b0710",
-    padding: 24,
+    padding: 22,
     justifyContent: "center",
+    gap: 20,
+  },
+  brandRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  brandMark: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#f3a9c6",
+  },
+  brandMarkText: {
+    color: "#2b1420",
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  brandName: {
+    color: "#fff8fb",
+    fontSize: 18,
+    fontWeight: "800",
+    flex: 1,
+  },
+  ageBadge: {
+    color: "#f3a9c6",
+    borderWidth: 1,
+    borderColor: "#5c384d",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  panel: {
+    borderWidth: 1,
+    borderColor: "#4b3142",
+    borderRadius: 30,
+    padding: 22,
+    backgroundColor: "#171019",
     gap: 14,
   },
   eyebrow: {
     color: "#f3a9c6",
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 2,
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 1.8,
   },
   title: {
     color: "#fff8fb",
@@ -156,7 +219,7 @@ const styles = StyleSheet.create({
     color: "#c7b8c3",
     fontSize: 16,
     lineHeight: 23,
-    marginBottom: 6,
+    marginBottom: 4,
   },
   input: {
     borderWidth: 1,
@@ -164,7 +227,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     paddingHorizontal: 16,
     paddingVertical: 14,
-    backgroundColor: "#171019",
+    backgroundColor: "#100b12",
     color: "#fff8fb",
     fontSize: 16,
   },
@@ -179,6 +242,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#f3a9c6",
     marginTop: 4,
   },
+  primaryButtonPressed: {
+    transform: [{ scale: 0.99 }],
+  },
+  buttonDisabled: {
+    opacity: 0.65,
+  },
   primaryButtonText: {
     color: "#2b1420",
     fontSize: 16,
@@ -191,5 +260,11 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     color: "#e7cad8",
     fontWeight: "700",
+  },
+  identityNote: {
+    color: "#8f7e89",
+    fontSize: 12,
+    textAlign: "center",
+    lineHeight: 18,
   },
 });
