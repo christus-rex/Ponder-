@@ -179,6 +179,23 @@ create or replace function public.touch_updated_at() returns trigger language pl
 begin new.updated_at = now(); return new; end;
 $$;
 
+
+create or replace function public.enforce_adult_birth_date() returns trigger language plpgsql as $
+begin
+  if new.birth_date > (current_date - interval '18 years')::date then
+    raise exception 'Ponder+ requires users to be 18 or older';
+  end if;
+  if new.birth_date < date '1900-01-01' then
+    raise exception 'Birth date is outside the supported range';
+  end if;
+  return new;
+end;
+$;
+
+create trigger age_attestations_require_adult
+before insert or update on public.age_attestations
+for each row execute function public.enforce_adult_birth_date();
+
 create trigger profiles_touch before update on public.profiles for each row execute function public.touch_updated_at();
 create trigger age_attestations_touch before update on public.age_attestations for each row execute function public.touch_updated_at();
 create trigger account_controls_touch before update on public.account_controls for each row execute function public.touch_updated_at();
@@ -271,7 +288,7 @@ create policy gift_events_read_party on public.gift_events for select using (sen
 create policy wallet_ledger_read_own on public.wallet_ledger for select using (account_user_id = auth.uid());
 -- Gift and ledger writes are server-controlled.
 
-create policy reports_insert_own on public.reports for insert with check (reporter_user_id = auth.uid());
+create policy reports_insert_own on public.reports for insert with check (reporter_user_id = auth.uid() and status = 'open');
 create policy reports_read_own on public.reports for select using (reporter_user_id = auth.uid());
 
 create policy blocks_read_own on public.blocks for select using (blocker_user_id = auth.uid());
