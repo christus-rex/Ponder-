@@ -19,6 +19,24 @@ export async function POST(
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
+  const { data: canEnter, error: accessError } = await supabase.rpc(
+    "current_user_can_enter",
+  );
+
+  if (accessError) {
+    return NextResponse.json(
+      { error: "Authorization service unavailable." },
+      { status: 503 },
+    );
+  }
+
+  if (!canEnter) {
+    return NextResponse.json(
+      { error: "Account is not authorized to enter live rooms." },
+      { status: 403 },
+    );
+  }
+
   const secret = process.env.ROOM_BRAIN_AUTH_SECRET;
   const websocketUrl = process.env.NEXT_PUBLIC_ROOM_BRAIN_WS_URL;
 

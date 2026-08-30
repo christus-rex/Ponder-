@@ -2,9 +2,50 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { isSupabaseConfigured } from "./config";
 
+type AccessContext = {
+  account_status?: string;
+  can_enter?: boolean;
+};
+
+const fullAccessPages = ["/discover", "/rooms"];
+const authenticatedPages = ["/onboarding", "/account"];
+const fullAccessApis = ["/api/translation", "/api/rooms"];
+
+function matchesPrefix(pathname: string, prefixes: string[]) {
+  return prefixes.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
+}
+
+function copySessionCookies(source: NextResponse, target: NextResponse) {
+  source.cookies.getAll().forEach(({ name, value }) => {
+    target.cookies.set(name, value);
+  });
+  return target;
+}
+
 export async function updateSession(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+  const needsFullAccess =
+    matchesPrefix(pathname, fullAccessPages) ||
+    matchesPrefix(pathname, fullAccessApis);
+  const needsAuthentication =
+    needsFullAccess || matchesPrefix(pathname, authenticatedPages);
+  const isApiRequest = pathname.startsWith("/api/");
+
   if (!isSupabaseConfigured()) {
-    return NextResponse.next({ request });
+    if (!needsAuthentication) {
+      return NextResponse.next({ request });
+    }
+
+    if (isApiRequest) {
+      return NextResponse.json(
+        { error: "Ponder+ identity service is not configured." },
+        { status: 503 },
+      );
+    }
+
+    return NextResponse.redirect(new URL("/auth", request.url));
   }
 
   let response = NextResponse.next({ request });
@@ -28,6 +69,98 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  await supabase.auth.getClaims();
+  if (!needsAuthentication) {
+    await supabase.auth.getClaims();
+    return response;
+  }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    if (isApiRequest) {
+      return copySessionCookies(
+        response,
+        NextResponse.json(
+          { error: "Authentication required." },
+          { status: 401 },
+        ),
+      );
+    }
+
+    return copySessionCookies(
+      response,
+      NextResponse.redirect(new URL("/auth", request.url)),
+    );
+  }
+
+  const { data, error } = await supabase.rpc("current_access_context");
+  const access = data as AccessContext | null;
+
+  if (error || !access) {
+    if (isApiRequest) {
+      return copySessionCookies(
+        response,
+        NextResponse.json(
+          { error: "Authorization service unavailable." },
+          { status: 503 },
+        ),
+      );
+    }
+
+    return copySessionCookies(
+      response,
+      NextResponse.redirect(new URL("/account/restricted", request.url)),
+    );
+  }
+
+  if (access.account_status !== "active") {
+    if (isApiRequest) {
+      return copySessionCookies(
+        response,
+        NextResponse.json(
+          { error: "Account access is restricted." },
+          { status: 403 },
+        ),
+      );
+    }
+
+    if (pathname !== "/account/restricted") {
+      return copySessionCookies(
+        response,
+        NextResponse.redirect(new URL("/account/restricted", request.url)),
+      );
+    }
+
+    return response;
+  }
+
+  if (pathname === "/account/restricted") {
+    return copySessionCookies(
+      response,
+      NextResponse.redirect(
+        new URL(access.can_enter ? "/discover" : "/onboarding", request.url),
+      ),
+    );
+  }
+
+  if (needsFullAccess && !access.can_enter) {
+    if (isApiRequest) {
+      return copySessionCookies(
+        response,
+        NextResponse.json(
+          { error: "Complete onboarding before entering Ponder+." },
+          { status: 403 },
+        ),
+      );
+    }
+
+    return copySessionCookies(
+      response,
+      NextResponse.redirect(new URL("/onboarding", request.url)),
+    );
+  }
+
   return response;
 }
