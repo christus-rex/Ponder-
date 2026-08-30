@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, "foundation/**", "feature/**"]
+    branches: [main, "foundation/**", "feature/**", "integration/**"]
   pull_request:
     branches: [main, "foundation/**", "feature/**"]
 
@@ -22,3 +22,4 @@ jobs:
       - run: npm ci
       - run: npm run audit:ci
       - run: npm run qa
+      - run: npm run build
