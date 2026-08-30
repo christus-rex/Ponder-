@@ -28,9 +28,16 @@ test('private age and verification data is owner-readable only', () => {
     foundation,
     /users read own private record[\s\S]*id = \(select auth\.uid\(\)\)/i
   );
-  assert.doesNotMatch(
-    foundation,
-    /create policy[\s\S]*user_private[\s\S]*using \(true\)/i
+
+  const userPrivatePolicies = foundation
+    .split(/create policy /i)
+    .map((chunk) => chunk.split(';', 1)[0] ?? '')
+    .filter((chunk) => /on public\.user_private/i.test(chunk));
+
+  assert.ok(userPrivatePolicies.length >= 1);
+  assert.equal(
+    userPrivatePolicies.some((policy) => /using \(true\)/i.test(policy)),
+    false
   );
 });
 
