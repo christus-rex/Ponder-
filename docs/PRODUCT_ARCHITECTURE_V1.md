@@ -271,7 +271,7 @@ preview -> join -> active -> leave
 - [x] interests persisted
 - [x] discovery surface
 - [x] deterministic resonance scorer
-- [ ] rank discovery candidates with scorer
+- [x] rank discovery candidates with scorer
 - [ ] log privacy-safe discovery outcomes
 - [ ] add presence/availability signal
 
