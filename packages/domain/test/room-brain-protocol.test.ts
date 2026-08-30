@@ -11,12 +11,12 @@ import {
 function envelope(
   commandId: string,
   command: RoomBrainClientEnvelope['command'],
-  expectedSequence?: number
+  expectedSequence: number
 ): RoomBrainClientEnvelope {
   return {
     version: 1,
     commandId,
-    ...(expectedSequence === undefined ? {} : { expectedSequence }),
+    expectedSequence,
     command
   };
 }
@@ -74,7 +74,11 @@ test('recent command memory is bounded', () => {
   for (let index = 0; index < 4; index += 1) {
     const result = applyRoomBrainEnvelope(
       protocol,
-      envelope(`cmd_join_00${index + 10}`, { type: 'join', userId: `user-${index}`, role: 'viewer' }),
+      envelope(
+        `cmd_join_00${index + 10}`,
+        { type: 'join', userId: `user-${index}`, role: 'viewer' },
+        index
+      ),
       3
     );
     assert.equal(result.accepted, true);
@@ -85,10 +89,35 @@ test('recent command memory is bounded', () => {
   assert.deepEqual(protocol.recentCommandIds, ['cmd_join_0011', 'cmd_join_0012', 'cmd_join_0013']);
 });
 
+test('evicted command ID still cannot be replayed because its sequence guard is stale', () => {
+  let protocol = initialRoomBrainProtocolState(initialRoomBrainState());
+  const original = envelope('cmd_join_0100', { type: 'join', userId: 'user-0', role: 'viewer' }, 0);
+
+  protocol = applyRoomBrainEnvelope(protocol, original, 2).protocol;
+  protocol = applyRoomBrainEnvelope(
+    protocol,
+    envelope('cmd_join_0101', { type: 'join', userId: 'user-1', role: 'viewer' }, 1),
+    2
+  ).protocol;
+  protocol = applyRoomBrainEnvelope(
+    protocol,
+    envelope('cmd_join_0102', { type: 'join', userId: 'user-2', role: 'viewer' }, 2),
+    2
+  ).protocol;
+
+  assert.equal(protocol.recentCommandIds.includes(original.commandId), false);
+
+  const replay = applyRoomBrainEnvelope(protocol, original, 2);
+  assert.equal(replay.accepted, false);
+  assert.equal(replay.duplicate, false);
+  if (!replay.accepted) assert.equal(replay.reason, 'sequence_mismatch');
+  assert.equal(replay.protocol.room.sequence, 3);
+});
+
 test('invalid command IDs are rejected before state mutation', () => {
   const protocol = initialRoomBrainProtocolState(initialRoomBrainState());
   assert.throws(
-    () => applyRoomBrainEnvelope(protocol, envelope('bad', { type: 'join', userId: 'viewer', role: 'viewer' })),
+    () => applyRoomBrainEnvelope(protocol, envelope('bad', { type: 'join', userId: 'viewer', role: 'viewer' }, 0)),
     /Invalid Room Brain command ID/
   );
   assert.equal(protocol.room.sequence, 0);
@@ -98,7 +127,7 @@ test('snapshot is detached from mutable collections', () => {
   let protocol = initialRoomBrainProtocolState(initialRoomBrainState());
   const joined = applyRoomBrainEnvelope(
     protocol,
-    envelope('cmd_join_0099', { type: 'join', userId: 'host', role: 'host' })
+    envelope('cmd_join_0099', { type: 'join', userId: 'host', role: 'host' }, 0)
   );
   protocol = joined.protocol;
 
