@@ -1,25 +1,69 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/auth/actions";
+import {
+  rankResonance,
+  scoreIntentAffinity,
+  type SocialIntent,
+} from "@/packages/domain/src/matching";
 
 export default async function DiscoverPage() {
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) redirect("/auth");
 
-  const [{ data: people }, { data: rooms }] = await Promise.all([
+  const [{ data: viewer }, { data: people }, { data: rooms }] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("id,current_intent,interests")
+      .eq("id", userData.user.id)
+      .single(),
     supabase
       .from("profiles")
       .select("id,handle,display_name,bio,current_intent,interests")
       .neq("id", userData.user.id)
       .not("onboarding_completed_at", "is", null)
-      .limit(12),
+      .limit(48),
     supabase
       .from("rooms")
       .select("id,title,description,current_intent,max_participants,status")
       .eq("status", "open")
-      .limit(12),
+      .limit(24),
   ]);
+
+  const viewerProfile = viewer
+    ? {
+        id: viewer.id,
+        intent: viewer.current_intent as SocialIntent,
+        interests: viewer.interests ?? [],
+      }
+    : null;
+
+  const rankedPeople = viewerProfile
+    ? rankResonance(
+        viewerProfile,
+        (people ?? []).map((person) => ({
+          ...person,
+          intent: person.current_intent as SocialIntent,
+          interests: person.interests ?? [],
+        })),
+      ).slice(0, 12)
+    : [];
+
+  const rankedRooms = (rooms ?? [])
+    .map((room) => ({
+      room,
+      intentFit: viewerProfile
+        ? Math.round(
+            scoreIntentAffinity(
+              viewerProfile.intent,
+              room.current_intent as SocialIntent,
+            ) * 100,
+          )
+        : null,
+    }))
+    .sort((a, b) => (b.intentFit ?? 0) - (a.intentFit ?? 0))
+    .slice(0, 12);
 
   return (
     <main className="shell">
@@ -51,16 +95,22 @@ export default async function DiscoverPage() {
       </nav>
 
       <section className="section">
-        <p className="sectionLabel">PEOPLE</p>
+        <p className="sectionLabel">RESONANCE</p>
         <h2>Find conversation before popularity.</h2>
+        <p className="walletNote" style={{ marginTop: 10 }}>
+          Ranked by conversational intent and shared interests — never by gifting or spend.
+        </p>
         <div className="roomGrid" style={{ marginTop: 28 }}>
-          {(people ?? []).map((person) => (
+          {rankedPeople.map(({ candidate: person, resonance }) => (
             <article className="roomCard" key={person.id}>
-              <span className="roomMeta">{person.current_intent?.replaceAll("_", " ")}</span>
+              <span className="roomMeta">
+                {person.current_intent?.replaceAll("_", " ")} · {resonance.score} resonance
+              </span>
               <h3>{person.display_name}</h3>
               <p>@{person.handle}</p>
               <p>{person.bio}</p>
               <p className="walletNote">{person.interests?.join(" · ")}</p>
+              <p className="walletNote">{resonance.reasons.join(" · ")}</p>
             </article>
           ))}
         </div>
@@ -70,10 +120,11 @@ export default async function DiscoverPage() {
         <p className="sectionLabel">ROOMS</p>
         <h2>Small spaces with an explicit purpose.</h2>
         <div className="roomGrid" style={{ marginTop: 28 }}>
-          {(rooms ?? []).map((room) => (
+          {rankedRooms.map(({ room, intentFit }) => (
             <article className="roomCard" key={room.id}>
               <span className="roomMeta">
                 {room.current_intent?.replaceAll("_", " ")} · up to {room.max_participants}
+                {intentFit !== null ? ` · ${intentFit} intent fit` : ""}
               </span>
               <h3>{room.title}</h3>
               <p>{room.description}</p>
