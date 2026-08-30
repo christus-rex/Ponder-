@@ -1,8 +1,13 @@
 node_modules/
 .next/
+.expo/
+dist/
 coverage/
+*.log
 .env
 .env.*
 !.env.example
 npm-debug.log*
 .DS_Store
+android/
+ios/

@@ -3,18 +3,31 @@
   "private": true,
   "version": "0.3.0",
   "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
     "start": "next start",
+    "mobile": "npm --workspace @ponder/mobile run start",
     "translator:demo": "node demo/server.mjs",
-    "typecheck": "tsc --noEmit",
-    "test": "npm run test:unit && npm run test:translator",
-    "test:unit": "vitest run lib/crypto/ledger.test.ts lib/auth/age.test.ts lib/translation/config.test.ts",
-    "test:translator": "node --test test/*.test.mjs"
+    "build": "npm run build:web && npm run build:mobile",
+    "build:web": "next build",
+    "build:mobile": "npm --workspace @ponder/mobile run build:android",
+    "typecheck": "npm run typecheck:web && npm run typecheck:domain && npm run typecheck:mobile",
+    "typecheck:web": "tsc --noEmit",
+    "typecheck:domain": "tsc -p packages/domain/tsconfig.json --noEmit",
+    "typecheck:mobile": "tsc -p apps/mobile/tsconfig.json --noEmit",
+    "test": "npm run test:web && npm run test:translator && npm run test:domain",
+    "test:web": "vitest run lib/crypto/ledger.test.ts lib/auth/age.test.ts lib/translation/config.test.ts",
+    "test:translator": "node --test test/*.test.mjs",
+    "test:domain": "node --experimental-strip-types --test packages/domain/test/*.test.ts",
+    "audit:ci": "npm audit --audit-level=high",
+    "qa": "npm run audit:ci && npm run typecheck && npm test"
   },
   "engines": {
-    "node": ">=20.9"
+    "node": ">=22.13.0"
   },
   "dependencies": {
     "@base-org/account": "2.5.5",

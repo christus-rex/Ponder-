@@ -1,0 +1,21 @@
+{
+  "name": "@ponder/mobile",
+  "version": "0.0.1",
+  "private": true,
+  "main": "expo/AppEntry",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "build:android": "expo export --platform android --output-dir ../../dist/mobile-android"
+  },
+  "dependencies": {
+    "expo": "~57.0.9",
+    "react": "19.2.3",
+    "react-native": "0.86.2"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.2"
+  }
+}
