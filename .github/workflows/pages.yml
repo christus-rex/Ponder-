@@ -26,18 +26,55 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
+
+      - name: Check whether GitHub Pages is enabled
+        id: pages
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          status="$(curl -sS -o /tmp/pages.json -w "%{http_code}"             -H "Accept: application/vnd.github+json"             -H "Authorization: Bearer $GH_TOKEN"             -H "X-GitHub-Api-Version: 2022-11-28"             "https://api.github.com/repos/$REPOSITORY/pages")"
+
+          if [ "$status" = "200" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "GitHub Pages is enabled." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "## GitHub Pages is not enabled yet"
+              echo
+              echo "The preview has been preserved as a workflow artifact."
+              echo
+              echo "One-time repository action: **Settings → Pages → Build and deployment → Source → GitHub Actions**."
+              echo
+              echo "After Pages is enabled, re-run this workflow or push a change under `preview/`."
+              echo
+              echo "GitHub API status: `$status`."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Preserve preview artifact when Pages is disabled
+        if: steps.pages.outputs.enabled != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ponder-plus-preview
+          path: preview
+          if-no-files-found: error
 
       - name: Setup Pages
+        if: steps.pages.outputs.enabled == 'true'
         uses: actions/configure-pages@v5
-        with:
-          enablement: true
 
       - name: Upload public preview
+        if: steps.pages.outputs.enabled == 'true'
         uses: actions/upload-pages-artifact@v4
         with:
           path: preview
 
       - name: Deploy to GitHub Pages
+        if: steps.pages.outputs.enabled == 'true'
         id: deployment
         uses: actions/deploy-pages@v4
