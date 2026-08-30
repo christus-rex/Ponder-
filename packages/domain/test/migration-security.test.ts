@@ -10,7 +10,11 @@ const hardening = readFileSync(
   'supabase/migrations/20260830202000_backend_hardening.sql',
   'utf8'
 );
-const sql = foundation + '\n' + hardening;
+const onboarding = readFileSync(
+  'supabase/migrations/20260830202500_onboarding_preferences.sql',
+  'utf8'
+);
+const sql = foundation + '\n' + hardening + '\n' + onboarding;
 
 test('18+ eligibility is enforced during signup and in private account data', () => {
   assert.match(
@@ -118,4 +122,36 @@ test('advisor-recommended foreign-key indexes are declared', () => {
   ]) {
     assert.match(hardening, new RegExp(`create index if not exists ${index}`, 'i'));
   }
+});
+
+
+test('mature-content preference is private and owner-scoped', () => {
+  assert.match(onboarding, /alter table public\.user_preferences enable row level security/i);
+  assert.match(
+    onboarding,
+    /users read own preferences[\s\S]*id = \(select auth\.uid\(\)\)/i
+  );
+  assert.match(
+    onboarding,
+    /users update own preferences[\s\S]*id = \(select auth\.uid\(\)\)/i
+  );
+});
+
+test('terms acceptance is server-stamped and cannot be rewritten', () => {
+  assert.match(onboarding, /create or replace function public\.stamp_terms_acceptance/i);
+  assert.match(onboarding, /new\.terms_accepted_at := now\(\)/i);
+  assert.match(onboarding, /Terms acceptance cannot be revoked or rewritten/i);
+});
+
+test('onboarding completion requires terms and preferences at the database boundary', () => {
+  assert.match(onboarding, /profiles_require_onboarding_prerequisites/i);
+  assert.match(onboarding, /terms_accepted_at is not null/i);
+  assert.match(onboarding, /from public\.user_preferences pref/i);
+});
+
+test('new users receive a private preferences row', () => {
+  assert.match(
+    onboarding,
+    /insert into public\.user_preferences \(id\)[\s\S]*values \(new\.id\)/i
+  );
 });
