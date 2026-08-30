@@ -19,4 +19,10 @@ jobs:
         with:
           node-version: "22.13.0"
       - run: npm install
+      - name: Emit lockfile for bootstrap
+        run: |
+          echo "PONDER_LOCKFILE_GZIP_BASE64_BEGIN"
+          gzip -c package-lock.json | base64 -w0
+          echo
+          echo "PONDER_LOCKFILE_GZIP_BASE64_END"
       - run: npm run qa
