@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { isAtLeast18 } from "@/lib/auth/age";
+import { POST_AUTH_DESTINATION } from "@/lib/auth/routeAccess";
 import { createClient } from "@/lib/supabase/server";
 
 function stringField(formData: FormData, key: string) {
@@ -34,7 +35,7 @@ export async function signUp(formData: FormData) {
   });
 
   if (error) throw new Error(error.message);
-  redirect(data.session ? "/onboarding" : "/auth/check-email");
+  redirect(data.session ? POST_AUTH_DESTINATION : "/auth/check-email");
 }
 
 export async function signIn(formData: FormData) {
@@ -45,11 +46,11 @@ export async function signIn(formData: FormData) {
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) throw new Error(error.message);
-  redirect("/onboarding");
+  redirect(POST_AUTH_DESTINATION);
 }
 
 export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();
-  redirect("/");
+  redirect("/auth");
 }
