@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { getRouteAccessRequirements } from "./routeAccess";
+import {
+  getRouteAccessRequirements,
+  POST_AUTH_DESTINATION,
+} from "./routeAccess";
 
 describe("Ponder+ route access", () => {
   it("requires authentication for the app entry splash boundary", () => {
@@ -14,6 +17,13 @@ describe("Ponder+ route access", () => {
     expect(getRouteAccessRequirements("/auth").needsAuthentication).toBe(false);
     expect(getRouteAccessRequirements("/terms").needsAuthentication).toBe(false);
     expect(getRouteAccessRequirements("/safety").needsAuthentication).toBe(false);
+  });
+
+  it("uses discover as the post-auth destination", () => {
+    expect(POST_AUTH_DESTINATION).toBe("/discover");
+    expect(
+      getRouteAccessRequirements(POST_AUTH_DESTINATION).needsFullAccess,
+    ).toBe(true);
   });
 
   it("requires completed access for social rooms and their APIs", () => {
