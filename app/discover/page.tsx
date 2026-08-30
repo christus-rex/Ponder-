@@ -25,7 +25,10 @@ export default async function DiscoverPage() {
     <main className="shell">
       <nav className="nav">
         <div className="brand"><span className="brandMark">P+</span><span>Discover</span></div>
-        <form action={signOut}><button className="secondaryButton" type="submit">Sign out</button></form>
+        <div className="heroActions" style={{ marginTop: 0 }}>
+          <a className="secondaryButton" href="/rooms/lab">Live room lab</a>
+          <form action={signOut}><button className="secondaryButton" type="submit">Sign out</button></form>
+        </div>
       </nav>
 
       <section className="section">
