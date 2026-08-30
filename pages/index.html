@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#09090b" />
+  <title>Ponder+ Live AI Translator</title>
+  <meta name="description" content="Ponder+ public preview: live speech translation with browser AI." />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <div class="brand-row">
+        <span class="brand">PONDER+</span>
+        <span class="preview">PUBLIC PREVIEW</span>
+      </div>
+      <h1>Speak freely.<br><span>Understand instantly.</span></h1>
+      <p class="lede">A live translation experiment for more authentic global conversation. On supported desktop Chrome, translation runs with Chrome's built-in AI.</p>
+    </header>
+
+    <section class="panel" aria-label="Live translator">
+      <div class="toolbar">
+        <label>
+          I’m speaking
+          <select id="sourceLanguage"></select>
+        </label>
+        <button id="swap" class="icon-button" type="button" aria-label="Swap languages">⇄</button>
+        <label>
+          Translate to
+          <select id="targetLanguage"></select>
+        </label>
+        <button id="toggle" class="primary" type="button">Start listening</button>
+      </div>
+
+      <div id="compatibility" class="compatibility" role="status"></div>
+
+      <div class="transcripts">
+        <article>
+          <span class="label">ORIGINAL</span>
+          <p id="sourceTranscript" class="transcript" aria-live="polite">Your words will appear here.</p>
+        </article>
+        <article class="translated">
+          <div class="article-top">
+            <span class="label">TRANSLATION</span>
+            <button id="speakTranslation" class="text-button" type="button" disabled>Speak</button>
+          </div>
+          <p id="translatedTranscript" class="transcript" aria-live="polite">Translation will appear here.</p>
+        </article>
+      </div>
+
+      <div class="composer">
+        <label for="manualText">Or test with text</label>
+        <div class="compose-row">
+          <textarea id="manualText" rows="2" placeholder="Type something to translate…"></textarea>
+          <button id="translateText" type="button">Translate</button>
+        </div>
+      </div>
+
+      <footer class="panel-footer">
+        <span id="status" data-state="idle">Idle</span>
+        <span>Browser preview · no Ponder+ account required</span>
+      </footer>
+    </section>
+
+    <section class="roadmap">
+      <div>
+        <span class="label">NOW</span>
+        <h2>Browser AI preview</h2>
+        <p>Speech recognition, built-in translation, captions, and spoken playback.</p>
+      </div>
+      <div>
+        <span class="label">NEXT</span>
+        <h2>Room-native translation</h2>
+        <p>OpenAI realtime translation attached directly to individual Ponder+ live-room audio tracks.</p>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
