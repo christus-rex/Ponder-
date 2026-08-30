@@ -2,37 +2,120 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-const sql = readFileSync('supabase/migrations/0001_core.sql', 'utf8');
+const foundation = readFileSync(
+  'supabase/migrations/20260830193000_identity_persistence.sql',
+  'utf8'
+);
+const hardening = readFileSync(
+  'supabase/migrations/20260830202000_backend_hardening.sql',
+  'utf8'
+);
+const sql = foundation + '\n' + hardening;
 
-function policyAllowsInsert(table: string): boolean {
-  const pattern = new RegExp(`create\\s+policy[\\s\\S]*?on\\s+public\\.${table}\\s+for\\s+insert`, 'i');
-  return pattern.test(sql);
-}
-
-test('wallet ledger is guarded by an immutability trigger', () => {
-  assert.match(sql, /create trigger wallet_ledger_immutable before update or delete on public\.wallet_ledger/i);
+test('18+ eligibility is enforced during signup and in private account data', () => {
+  assert.match(
+    foundation,
+    /constraint adult_only check \(date_of_birth <= \(current_date - interval '18 years'\)::date\)/i
+  );
+  assert.match(
+    foundation,
+    /handle_new_user[\s\S]*Ponder\+ requires an adult date of birth/i
+  );
 });
 
-test('sensitive settlement and moderation tables do not allow direct client inserts', () => {
-  for (const table of ['wallet_ledger', 'gift_events', 'account_controls', 'room_participants', 'messages']) {
-    assert.equal(policyAllowsInsert(table), false, `${table} unexpectedly has a client insert policy`);
+test('private age and verification data is owner-readable only', () => {
+  assert.match(
+    foundation,
+    /users read own private record[\s\S]*id = \(select auth\.uid\(\)\)/i
+  );
+
+  const userPrivatePolicies = foundation
+    .split(/create policy /i)
+    .map((chunk) => chunk.split(';', 1)[0] ?? '')
+    .filter((chunk) => /on public\.user_private/i.test(chunk));
+
+  assert.ok(userPrivatePolicies.length >= 1);
+  assert.equal(
+    userPrivatePolicies.some((policy) => /using \(true\)/i.test(policy)),
+    false
+  );
+});
+
+test('clients cannot self-promote age verification state', () => {
+  assert.match(
+    hardening,
+    /revoke update on public\.user_private from authenticated/i
+  );
+  assert.match(
+    hardening,
+    /grant update \(terms_accepted_at\) on public\.user_private to authenticated/i
+  );
+});
+
+test('signup security-definer function is not exposed as client RPC', () => {
+  for (const role of ['public', 'anon', 'authenticated']) {
+    assert.match(
+      hardening,
+      new RegExp(
+        `revoke execute on function public\\.handle_new_user\\(\\) from ${role}`,
+        'i'
+      )
+    );
   }
 });
 
-test('room creation is constrained to a World owned by the host', () => {
-  assert.match(sql, /live_rooms_insert_host[\s\S]*owner_user_id\s*=\s*auth\.uid\(\)/i);
+test('room creation is constrained to the authenticated creator', () => {
+  assert.match(
+    foundation,
+    /users create own rooms[\s\S]*created_by = \(select auth\.uid\(\)\)/i
+  );
 });
 
-test('self-service World membership is limited to published public Worlds', () => {
-  assert.match(sql, /world_members_join_self[\s\S]*published_at is not null[\s\S]*visibility = 'public'/i);
+test('room message writes require active room membership', () => {
+  assert.match(
+    foundation,
+    /room members send messages[\s\S]*rm\.room_id = messages\.room_id[\s\S]*rm\.user_id = \(select auth\.uid\(\)\)[\s\S]*rm\.left_at is null/i
+  );
 });
 
-
-test('18+ eligibility is enforced at the database boundary', () => {
-  assert.match(sql, /age_attestations_require_adult/i);
-  assert.match(sql, /current_date\s*-\s*interval '18 years'/i);
+test('ledger tables are client read-only', () => {
+  assert.match(
+    foundation,
+    /grant select on public\.ledger_accounts, public\.ledger_entries, public\.ledger_postings to authenticated/i
+  );
+  assert.doesNotMatch(
+    foundation,
+    /grant[^;]*insert[^;]*public\.ledger_(accounts|entries|postings)/i
+  );
 });
 
-test('new reports must enter moderation as open', () => {
-  assert.match(sql, /reports_insert_own[\s\S]*status\s*=\s*'open'/i);
+test('all core user-facing tables enable row-level security', () => {
+  for (const table of [
+    'profiles',
+    'user_private',
+    'rooms',
+    'room_members',
+    'messages',
+    'connections',
+    'wallet_links',
+    'ledger_accounts',
+    'ledger_entries',
+    'ledger_postings'
+  ]) {
+    assert.match(
+      sql,
+      new RegExp(`alter table public\\.${table} enable row level security`, 'i')
+    );
+  }
+});
+
+test('advisor-recommended foreign-key indexes are declared', () => {
+  for (const index of [
+    'connections_addressee_idx',
+    'ledger_postings_account_idx',
+    'messages_sender_idx',
+    'rooms_created_by_idx'
+  ]) {
+    assert.match(hardening, new RegExp(`create index if not exists ${index}`, 'i'));
+  }
 });
