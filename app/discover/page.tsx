@@ -24,11 +24,30 @@ export default async function DiscoverPage() {
   return (
     <main className="shell">
       <nav className="nav">
-        <div className="brand"><span className="brandMark">P+</span><span>Discover</span></div>
-        <div className="heroActions" style={{ marginTop: 0 }}>
-          <a className="secondaryButton" href="/rooms/lab">Live room lab</a>
-          <form action={signOut}><button className="secondaryButton" type="submit">Sign out</button></form>
+        <div className="brand">
+          <span className="brandMark">P+</span>
+          <span>Discover</span>
         </div>
+
+        <details className="appMenu">
+          <summary className="secondaryButton appMenuTrigger">Menu</summary>
+          <div className="appMenuPanel">
+            <a className="appMenuItem" href="/onboarding">
+              <span>Profile & preferences</span>
+              <small>Identity, interests, mature-topic settings</small>
+            </a>
+            <a className="appMenuItem" href="/rooms/lab">
+              <span>Translation</span>
+              <small>Live room language tools</small>
+            </a>
+            <form action={signOut}>
+              <button className="appMenuItem appMenuSignOut" type="submit">
+                <span>Sign out</span>
+                <small>End this session</small>
+              </button>
+            </form>
+          </div>
+        </details>
       </nav>
 
       <section className="section">
@@ -53,7 +72,9 @@ export default async function DiscoverPage() {
         <div className="roomGrid" style={{ marginTop: 28 }}>
           {(rooms ?? []).map((room) => (
             <article className="roomCard" key={room.id}>
-              <span className="roomMeta">{room.current_intent?.replaceAll("_", " ")} · up to {room.max_participants}</span>
+              <span className="roomMeta">
+                {room.current_intent?.replaceAll("_", " ")} · up to {room.max_participants}
+              </span>
               <h3>{room.title}</h3>
               <p>{room.description}</p>
             </article>
