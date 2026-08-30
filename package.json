@@ -10,5 +10,8 @@
     "typecheck": "tsc -p packages/domain/tsconfig.json --noEmit && tsc -p apps/mobile/tsconfig.json --noEmit",
     "qa": "npm run test && npm run typecheck"
   },
-  "devDependencies": {"typescript": "~6.0.3"}
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "typescript": "~6.0.3"
+  }
 }
