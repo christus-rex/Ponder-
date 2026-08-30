@@ -81,7 +81,10 @@ function validatePayload(
     throw new Error('Invalid Room Brain role');
   }
 
-  if (!Number.isSafeInteger(payload.exp) || (payload.exp as number) <= nowEpochSeconds) {
+  if (!Number.isSafeInteger(payload.exp) || (payload.exp as number) <= 0) {
+    throw new Error('Invalid Room Brain token expiry');
+  }
+  if ((payload.exp as number) <= nowEpochSeconds) {
     throw new Error('Expired Room Brain token');
   }
 }
