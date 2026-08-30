@@ -4,10 +4,33 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
     "translator:demo": "node demo/server.mjs",
-    "test": "node --test"
+    "typecheck": "tsc --noEmit",
+    "test": "npm run test:unit && npm run test:translator",
+    "test:unit": "vitest run lib/crypto/ledger.test.ts",
+    "test:translator": "node --test test/*.test.mjs"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=20.9"
+  },
+  "dependencies": {
+    "@base-org/account": "2.5.5",
+    "next": "16.3.3",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "viem": "2.56.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "typescript": "7.0.2",
+    "vitest": "4.1.11"
+  },
+  "overrides": {
+    "axios": "1.20.0"
   }
 }
