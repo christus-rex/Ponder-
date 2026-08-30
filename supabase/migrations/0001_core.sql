@@ -238,10 +238,23 @@ create policy follows_insert_self on public.follows for insert with check (follo
 create policy follows_delete_self on public.follows for delete using (follower_user_id = auth.uid());
 
 create policy live_rooms_read_visible on public.live_rooms for select using (
-  host_user_id = auth.uid() or exists (select 1 from public.worlds w where w.id = world_id and w.published_at is not null)
+  host_user_id = auth.uid() or exists (
+    select 1 from public.worlds w
+    where w.id = world_id and w.published_at is not null and w.visibility = 'public'
+  )
 );
-create policy live_rooms_insert_host on public.live_rooms for insert with check (host_user_id = auth.uid());
-create policy live_rooms_update_host on public.live_rooms for update using (host_user_id = auth.uid()) with check (host_user_id = auth.uid());
+create policy live_rooms_insert_host on public.live_rooms for insert with check (
+  host_user_id = auth.uid() and exists (
+    select 1 from public.worlds w
+    where w.id = world_id and w.owner_user_id = auth.uid()
+  )
+);
+create policy live_rooms_update_host on public.live_rooms for update using (host_user_id = auth.uid()) with check (
+  host_user_id = auth.uid() and exists (
+    select 1 from public.worlds w
+    where w.id = world_id and w.owner_user_id = auth.uid()
+  )
+);
 
 create policy room_participants_read_self_or_host on public.room_participants for select using (
   user_id = auth.uid() or exists (select 1 from public.live_rooms r where r.id = room_id and r.host_user_id = auth.uid())
