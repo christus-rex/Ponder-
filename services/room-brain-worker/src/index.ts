@@ -2,12 +2,15 @@ import { DurableObject } from "cloudflare:workers";
 import {
   applyRoomBrainCommand,
   buildRoomBrainSnapshot,
+  claimRoomBrainPresence,
   encodeRoomBrainMessage,
   handleRoomBrainClientMessage,
   initialRoomBrainProtocolState,
   initialRoomBrainState,
+  releaseRoomBrainPresence,
   verifyRoomBrainToken,
   type RoomBrainConnectionIdentity,
+  type RoomBrainPresenceRegistry,
   type RoomBrainProtocolState,
   type RoomBrainServerMessage,
   type RoomBrainTokenPayload,
@@ -25,6 +28,7 @@ type ConnectionAttachment = RoomBrainConnectionIdentity & {
 };
 
 const PROTOCOL_STORAGE_KEY = "room-brain-protocol";
+const PRESENCE_STORAGE_KEY = "room-brain-presence";
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -80,14 +84,54 @@ export class RoomBrainDurableObject extends DurableObject<Env> {
       return new Response("Verified connection identity required", { status: 401 });
     }
 
+    const presence = await this.loadPresence();
+    let claimedPresence;
+    try {
+      claimedPresence = claimRoomBrainPresence(
+        presence,
+        attachment.userId,
+        attachment.connectionId
+      );
+    } catch {
+      return new Response("Too many active Room Brain connections", { status: 429 });
+    }
+
+    let protocol = await this.loadProtocol();
+    let joinBroadcast: RoomBrainServerMessage | undefined;
+
+    if (!protocol.room.participants[attachment.userId]) {
+      const room = applyRoomBrainCommand(protocol.room, {
+        type: "join",
+        userId: attachment.userId,
+        role: attachment.role,
+      });
+      protocol = {
+        room,
+        recentCommandIds: protocol.recentCommandIds,
+      };
+      joinBroadcast = {
+        version: 1,
+        type: "state_changed",
+        sequence: room.sequence,
+        command: {
+          type: "join",
+          userId: attachment.userId,
+          role: attachment.role,
+        },
+      };
+    }
+
+    await this.ctx.storage.put(PRESENCE_STORAGE_KEY, claimedPresence.registry);
+    if (joinBroadcast) {
+      await this.ctx.storage.put(PROTOCOL_STORAGE_KEY, protocol);
+    }
+
     const pair = new WebSocketPair();
     const client = pair[0];
     const server = pair[1];
 
     this.ctx.acceptWebSocket(server);
     server.serializeAttachment(attachment);
-
-    const protocol = await this.loadProtocol();
     server.send(
       encodeRoomBrainMessage({
         version: 1,
@@ -95,6 +139,10 @@ export class RoomBrainDurableObject extends DurableObject<Env> {
         snapshot: buildRoomBrainSnapshot(protocol.room),
       } satisfies RoomBrainServerMessage)
     );
+
+    if (joinBroadcast) {
+      this.broadcast(joinBroadcast, server);
+    }
 
     return new Response(null, {
       status: 101,
@@ -165,6 +213,14 @@ export class RoomBrainDurableObject extends DurableObject<Env> {
     );
   }
 
+  private async loadPresence(): Promise<RoomBrainPresenceRegistry> {
+    return (
+      (await this.ctx.storage.get<RoomBrainPresenceRegistry>(
+        PRESENCE_STORAGE_KEY
+      )) ?? {}
+    );
+  }
+
   private async removeConnection(
     webSocket: HibernatingWebSocket
   ): Promise<void> {
@@ -172,6 +228,17 @@ export class RoomBrainDurableObject extends DurableObject<Env> {
       | ConnectionAttachment
       | null;
     if (!attachment) return;
+
+    const presence = await this.loadPresence();
+    const release = releaseRoomBrainPresence(
+      presence,
+      attachment.userId,
+      attachment.connectionId
+    );
+    if (!release.released) return;
+
+    await this.ctx.storage.put(PRESENCE_STORAGE_KEY, release.registry);
+    if (release.hasActiveConnections) return;
 
     const protocol = await this.loadProtocol();
     if (!protocol.room.participants[attachment.userId]) return;
@@ -194,10 +261,13 @@ export class RoomBrainDurableObject extends DurableObject<Env> {
     });
   }
 
-  private broadcast(message: RoomBrainServerMessage): void {
+  private broadcast(
+    message: RoomBrainServerMessage,
+    except?: WebSocket
+  ): void {
     const encoded = encodeRoomBrainMessage(message);
     for (const socket of this.ctx.getWebSockets()) {
-      socket.send(encoded);
+      if (socket !== except) socket.send(encoded);
     }
   }
 }
