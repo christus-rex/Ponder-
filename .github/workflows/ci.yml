@@ -7,30 +7,17 @@ on:
     branches: [main]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   qa:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event_name == 'push' && github.ref_name || '' }}
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "22.13.0"
-      - run: npm install
-      - name: Commit bootstrap lockfile
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/foundation/')
-        run: |
-          if git diff --quiet -- package-lock.json && git ls-files --error-unmatch package-lock.json >/dev/null 2>&1; then
-            echo "Lockfile already committed"
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package-lock.json
-          git commit -m "chore: lock dependency graph"
-          git push origin HEAD:${GITHUB_REF_NAME}
+          cache: npm
+      - run: npm ci
       - run: npm run qa
