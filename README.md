@@ -33,6 +33,8 @@ The shared domain package implements retry-safe live-room coordination: determin
 Open `demo/index.html` for a self-contained interactive alpha covering age gate, discovery, room entry, seat requests, reactions, demo gifting, chat, reporting, and visible Room Brain event sequencing.
 
 ### Live AI Translator
+The standalone translator demo is preserved, and the web app now also includes an authenticated `/rooms/lab` room-native translation sidecar that accepts a participant audio track, obtains ephemeral translation credentials from the backend, and keeps translated audio/captions separate from original room audio.
+
 Run:
 
 ```bash
@@ -40,7 +42,7 @@ export OPENAI_API_KEY="..."
 npm run translator:demo
 ```
 
-See `docs/live-ai-translator.md`.
+See `docs/live-ai-translator.md` and `docs/room-native-translation.md`.
 
 ## Local development
 
