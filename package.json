@@ -15,7 +15,7 @@
     "build": "npm run build:web && npm run build:mobile",
     "build:web": "next build",
     "build:mobile": "npm --workspace @ponder/mobile run build:android",
-    "typecheck": "npm run typecheck:web && npm run typecheck:domain && npm run typecheck:mobile",
+    "typecheck": "npm run typecheck:web && npm run typecheck:domain && npm run typecheck:mobile && npm run typecheck:room-brain-worker",
     "typecheck:web": "tsc --noEmit",
     "typecheck:domain": "tsc -p packages/domain/tsconfig.json --noEmit",
     "typecheck:mobile": "tsc -p apps/mobile/tsconfig.json --noEmit",
@@ -24,7 +24,8 @@
     "test:translator": "node --test test/*.test.mjs",
     "test:domain": "node --experimental-strip-types --test packages/domain/test/*.test.ts",
     "audit:ci": "npm audit --audit-level=high",
-    "qa": "npm run audit:ci && npm run typecheck && npm test"
+    "qa": "npm run audit:ci && npm run typecheck && npm test",
+    "typecheck:room-brain-worker": "tsc -p services/room-brain-worker/tsconfig.json --noEmit"
   },
   "engines": {
     "node": ">=22.13.0"
