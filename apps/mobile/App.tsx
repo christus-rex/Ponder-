@@ -37,16 +37,16 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#08090f' }, container: { padding: 24, gap: 16 },
-  eyebrow: { color: '#7ce8df', fontSize: 12, fontWeight: '700', letterSpacing: 2 },
-  title: { color: '#f7f7fb', fontSize: 52, fontWeight: '800', letterSpacing: -2 },
-  subtitle: { color: '#b8b9c6', fontSize: 20, marginBottom: 8 },
-  notice: { borderWidth: 1, borderColor: '#393b50', borderRadius: 20, padding: 18, backgroundColor: '#11131d' },
-  noticeTitle: { color: '#f1c86b', fontSize: 16, fontWeight: '700', marginBottom: 6 },
-  noticeBody: { color: '#d3d4dd', fontSize: 15, lineHeight: 22 },
-  card: { borderWidth: 1, borderColor: '#25283a', borderRadius: 18, padding: 18, backgroundColor: '#0e1018' },
-  cardTitle: { color: '#f7f7fb', fontSize: 18, fontWeight: '700', marginBottom: 6 },
-  cardBody: { color: '#aaaebe', fontSize: 15, lineHeight: 21 },
-  primaryButton: { marginTop: 8, borderRadius: 16, paddingVertical: 16, alignItems: 'center', backgroundColor: '#5f5df7' },
-  primaryButtonText: { color: '#fff', fontSize: 16, fontWeight: '800' }
+  safeArea: { flex: 1, backgroundColor: '#0b0710' }, container: { padding: 24, gap: 16 },
+  eyebrow: { color: '#f3a9c6', fontSize: 12, fontWeight: '700', letterSpacing: 2 },
+  title: { color: '#fff8fb', fontSize: 52, fontWeight: '700', letterSpacing: -2 },
+  subtitle: { color: '#c7b8c3', fontSize: 20, marginBottom: 8 },
+  notice: { borderWidth: 1, borderColor: '#4b3142', borderRadius: 24, padding: 18, backgroundColor: '#171019' },
+  noticeTitle: { color: '#f4d9b2', fontSize: 16, fontWeight: '700', marginBottom: 6 },
+  noticeBody: { color: '#e1d4dc', fontSize: 15, lineHeight: 22 },
+  card: { borderWidth: 1, borderColor: '#352435', borderRadius: 22, padding: 18, backgroundColor: '#130d16' },
+  cardTitle: { color: '#fff8fb', fontSize: 18, fontWeight: '700', marginBottom: 6 },
+  cardBody: { color: '#beaeb9', fontSize: 15, lineHeight: 21 },
+  primaryButton: { marginTop: 8, borderRadius: 20, paddingVertical: 16, alignItems: 'center', backgroundColor: '#f3a9c6' },
+  primaryButtonText: { color: '#2b1420', fontSize: 16, fontWeight: '800' }
 });
