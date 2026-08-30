@@ -1,0 +1,345 @@
+.authShell {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(420px, 0.92fr);
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.authShell::before,
+.authShell::after {
+  content: "";
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(14px);
+  pointer-events: none;
+  z-index: -1;
+}
+
+.authShell::before {
+  width: min(58vw, 760px);
+  height: min(58vw, 760px);
+  left: -20vw;
+  top: -28vw;
+  background: radial-gradient(circle, rgba(243, 169, 198, .28), transparent 68%);
+}
+
+.authShell::after {
+  width: min(48vw, 620px);
+  height: min(48vw, 620px);
+  right: -18vw;
+  bottom: -24vw;
+  background: radial-gradient(circle, rgba(200, 182, 255, .22), transparent 70%);
+}
+
+.brandPanel {
+  min-height: 100dvh;
+  padding: clamp(32px, 6vw, 88px);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border-right: 1px solid var(--line);
+  background:
+    radial-gradient(circle at 15% 18%, rgba(243, 169, 198, .16), transparent 34%),
+    linear-gradient(145deg, rgba(255, 242, 248, .045), rgba(255, 255, 255, .01));
+}
+
+.brandRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 800;
+  letter-spacing: -.02em;
+}
+
+.brandMark {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #27131d;
+  background: linear-gradient(135deg, #ffe1ed, var(--accent), var(--accent-2));
+  box-shadow: 0 14px 40px rgba(179, 83, 125, .24);
+}
+
+.brandCopy {
+  max-width: 760px;
+  padding: 72px 0;
+}
+
+.kicker {
+  margin: 0 0 18px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .18em;
+}
+
+.brandCopy h1 {
+  margin: 0;
+  max-width: 720px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(52px, 7.7vw, 104px);
+  font-weight: 600;
+  line-height: .9;
+  letter-spacing: -.06em;
+}
+
+.brandCopy p {
+  max-width: 620px;
+  margin: 28px 0 0;
+  color: var(--muted);
+  font-size: clamp(17px, 2vw, 22px);
+  line-height: 1.6;
+}
+
+.trustRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.trustChip {
+  padding: 8px 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: #eadce5;
+  background: rgba(255, 242, 248, .04);
+  font-size: 12px;
+}
+
+.loginPanel {
+  min-height: 100dvh;
+  padding: clamp(24px, 5vw, 64px);
+  display: grid;
+  place-items: center;
+}
+
+.loginCard {
+  width: min(100%, 470px);
+  padding: clamp(24px, 4vw, 38px);
+  border: 1px solid rgba(255, 225, 239, .16);
+  border-radius: 32px;
+  background:
+    linear-gradient(145deg, rgba(255, 244, 249, .105), rgba(255, 240, 248, .04));
+  backdrop-filter: blur(24px);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.05),
+    0 30px 90px rgba(23, 7, 18, .34);
+}
+
+.cardMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 30px;
+}
+
+.secureLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.secureDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 16px rgba(243, 169, 198, .8);
+}
+
+.ageBadge {
+  padding: 7px 10px;
+  border: 1px solid rgba(243, 169, 198, .25);
+  border-radius: 999px;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .09em;
+}
+
+.loginCard h2 {
+  margin: 0;
+  font-size: clamp(34px, 5vw, 50px);
+}
+
+.cardIntro {
+  margin: 12px 0 28px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.form {
+  display: grid;
+  gap: 17px;
+}
+
+.field {
+  display: grid;
+  gap: 8px;
+  color: #f3e5ec;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.field input {
+  margin: 0;
+  min-height: 52px;
+  border-radius: 16px;
+  padding: 0 15px;
+}
+
+.primaryButton {
+  min-height: 52px;
+  margin-top: 4px;
+  border: 1px solid rgba(255, 226, 238, .66);
+  border-radius: 17px;
+  cursor: pointer;
+  color: #28131d;
+  font-weight: 850;
+  background: linear-gradient(135deg, #ffe0eb, var(--accent));
+  box-shadow: 0 12px 34px rgba(178, 81, 122, .20);
+  transition: transform 140ms ease, box-shadow 140ms ease;
+}
+
+.primaryButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 40px rgba(178, 81, 122, .26);
+}
+
+.divider {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  margin: 26px 0;
+  color: #a995a1;
+  font-size: 11px;
+  letter-spacing: .12em;
+}
+
+.divider::before,
+.divider::after {
+  content: "";
+  height: 1px;
+  background: var(--line);
+}
+
+.createPanel {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 242, 248, .035);
+  overflow: hidden;
+}
+
+.createPanel summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 15px 16px;
+  color: #f4dde8;
+  font-weight: 750;
+}
+
+.createPanel summary::-webkit-details-marker {
+  display: none;
+}
+
+.createPanel[open] summary {
+  border-bottom: 1px solid var(--line);
+}
+
+.createForm {
+  display: grid;
+  gap: 16px;
+  padding: 18px 16px 16px;
+}
+
+.secondaryButton {
+  min-height: 48px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  cursor: pointer;
+  color: var(--text);
+  font-weight: 750;
+  background: rgba(255, 242, 248, .055);
+}
+
+.note {
+  margin: 0;
+  color: #bba8b4;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.cardFooter {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 22px;
+  color: #a995a1;
+  font-size: 12px;
+}
+
+.cardFooter a {
+  text-decoration: none;
+}
+
+.cardFooter a:hover {
+  color: var(--accent);
+}
+
+@media (max-width: 900px) {
+  .authShell {
+    grid-template-columns: 1fr;
+  }
+
+  .brandPanel {
+    min-height: auto;
+    padding: 28px 24px 34px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .brandCopy {
+    padding: 58px 0 46px;
+  }
+
+  .brandCopy h1 {
+    font-size: clamp(48px, 14vw, 78px);
+  }
+
+  .loginPanel {
+    min-height: auto;
+    padding: 36px 20px 54px;
+  }
+}
+
+@media (max-width: 520px) {
+  .brandPanel {
+    padding: 22px 18px 28px;
+  }
+
+  .brandCopy {
+    padding: 48px 0 36px;
+  }
+
+  .brandCopy p {
+    font-size: 16px;
+  }
+
+  .loginPanel {
+    padding: 24px 14px 42px;
+  }
+
+  .loginCard {
+    border-radius: 24px;
+    padding: 22px 18px;
+  }
+}
