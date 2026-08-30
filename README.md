@@ -4,37 +4,45 @@
 
 Ponder+ is an authenticity-first 18+ live-social product focused on meaningful conversation, creator-led communities, small rooms, realtime communication, and relationships people choose to continue.
 
-This repository is the canonical engineering source for the project.
+## Integrated stack
 
-## Engineering direction
-
-- Web application: Next.js + React + TypeScript
-- Mobile direction: Expo + React Native + TypeScript
-- Backend direction: Supabase + Postgres
-- Realtime media: provider abstraction, Cloudflare RealtimeKit first
-- Media storage: Cloudflare R2
-- Moderation: layered automated + human review
-- Economy: append-only/double-entry ledger; real-money settlement remains server-side
-- Crypto spike: Base Account + USDC, Base Sepolia testnet first
-- CI/QA: GitHub Actions + unit/integration tests
+- **Web:** Next.js + React + TypeScript
+- **Mobile:** Expo + React Native + TypeScript
+- **Backend:** Supabase + Postgres
+- **Realtime control:** Ponder Room Brain state machine + Cloudflare Durable Objects direction
+- **Media:** Cloudflare Realtime SFU direction behind a provider abstraction
+- **Storage:** Cloudflare R2 direction
+- **Moderation:** layered automated checks + human review
+- **Economy:** append-only/double-entry ledger; real-money settlement remains server-side
+- **Crypto spike:** Base Account + USDC on Base Sepolia only
+- **AI:** realtime translation prototype
+- **QA:** GitHub Actions, strict TypeScript, unit/security tests, web + mobile builds
 
 ## Current working tracks
 
-### 1. Authentic social shell + crypto foundation
+### Web product
+The Next.js app contains the social shell, discovery, auth/onboarding work, health/config routes, Supabase helpers, wallet UI, Base Sepolia test configuration, and ledger tests.
 
-The main Next.js application currently includes:
+### Mobile product
+The Expo app contains the first privacy-conscious 18+ gate and the initial Ponder+ product shell.
 
-- social-intent and small-room product shell
-- health/config API routes
-- Base Account connection prototype
-- Base Sepolia testnet configuration
-- Circle test USDC address for Base Sepolia
-- test-USDC transfer prototype
-- balanced double-entry ledger domain with tests
+### Room Brain
+The shared domain package implements retry-safe live-room coordination: deterministic room state, speaker queues, reaction aggregation, command idempotency, stale-sequence resync, runtime message validation, authenticated actor binding, and transport-safe acknowledgements/errors.
 
-No real-funds workflow is enabled in this milestone.
+### Working browser demo
+Open `demo/index.html` for a self-contained interactive alpha covering age gate, discovery, room entry, seat requests, reactions, demo gifting, chat, reporting, and visible Room Brain event sequencing.
 
-Run it locally:
+### Live AI Translator
+Run:
+
+```bash
+export OPENAI_API_KEY="..."
+npm run translator:demo
+```
+
+See `docs/live-ai-translator.md`.
+
+## Local development
 
 ```bash
 cp .env.example .env.local
@@ -42,76 +50,29 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:3000`.
-
-To enable the test-tip button, set:
+Mobile:
 
 ```bash
-NEXT_PUBLIC_PONDER_TIP_RECIPIENT=0x...
+npm run mobile
 ```
 
-Use only a Base Sepolia address you control. Testnet USDC has no monetary value.
-
-### 2. Live AI Translator
-
-The realtime speech translator prototype uses OpenAI's dedicated realtime translation API.
-
-Current demo capabilities:
-
-- microphone-to-translated-audio streaming over WebRTC
-- automatic source-language handling
-- source and translated live captions
-- selectable target language
-- server-side API-key protection with ephemeral browser credentials
-- zero third-party runtime dependencies for the local translator server
-- Node unit tests
-
-Run it locally:
+Full verification/build:
 
 ```bash
-export OPENAI_API_KEY="..."
-npm run translator:demo
+npm run qa
+npm run build
 ```
 
-Then open `http://localhost:8787`.
+`npm run build` produces a Next.js production build and an Expo Android export.
 
-See `docs/live-ai-translator.md` for room-scale architecture, production hardening, QA, and cost-control strategy.
+## Security boundaries
 
-## Architecture boundary
+- DOB and age-verification data never belong in public profiles.
+- Clients cannot directly mutate account enforcement, moderator authority, wallet settlement, purchase verification, or payouts.
+- Room Brain connection identity must be server-verified; client JSON cannot mint roles.
+- Financial operations use durable server-side idempotency and accounting.
+- Private keys, seed phrases, OpenAI server keys, service-role keys, and payment secrets never enter client bundles.
+- Testnet precedes any mainnet crypto workflow.
+- Mature/adult positioning does not bypass app-store, payment, identity, sanctions, or legal requirements.
 
-```text
-Social experience
-  ├─ profiles / discovery / rooms / messaging
-  ├─ realtime translation / media
-  └─ application database
-
-Value layer
-  ├─ wallet connection
-  ├─ Ponder internal ledger
-  ├─ settlement adapter
-  └─ Base / USDC
-```
-
-Social activity stays off-chain. Blockchain is reserved for settlement, ownership, and portable attestations where it adds real value.
-
-## Next milestones
-
-1. Persist users, profiles, rooms, conversations, wallets, and ledger entries.
-2. Add authentication and profile onboarding.
-3. Add 1:1 messaging and reconnect.
-4. Integrate translator capability into room/session architecture.
-5. Add server-side transaction verification/indexing.
-6. Replace direct test transfers with payment intents and ledger reconciliation.
-7. Add moderation primitives before any mature-content surface.
-
-## Security principles
-
-- Never store private keys or seed phrases in the application database.
-- Never expose the OpenAI server API key to browser clients.
-- Never infer balances from UI events.
-- Every monetary state transition must be idempotent and auditable.
-- Testnet precedes mainnet.
-- Mature/adult experiences must not be used to bypass payment, app-store, identity, sanctions, or legal requirements.
-- Base Account is temporarily pinned to 2.5.5 and Axios is overridden to the patched 1.20.0 release because the current CDP dependency chain can otherwise resolve to a vulnerable Axios version; revisit both constraints when the upstream chain is patched.
-
-Development begins on feature branches and is merged through pull requests.
+See `AGENTS.md`, `SECURITY.md`, and `docs/` for architecture and QA decisions.
