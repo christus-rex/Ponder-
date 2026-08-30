@@ -616,3 +616,101 @@ label {
 .sectionLabel {
   text-shadow: 0 0 24px rgba(243,169,198,.18);
 }
+
+
+/* Compact application menu */
+.appMenu {
+  position: relative;
+}
+
+.appMenu > summary {
+  list-style: none;
+}
+
+.appMenu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.appMenuTrigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  user-select: none;
+}
+
+.appMenuTrigger::after {
+  content: "⌄";
+  color: var(--accent);
+  font-size: 14px;
+  transform: translateY(-1px);
+  transition: transform 140ms ease;
+}
+
+.appMenu[open] .appMenuTrigger::after {
+  transform: rotate(180deg) translateY(1px);
+}
+
+.appMenuPanel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 30;
+  width: min(310px, calc(100vw - 32px));
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(243,169,198,.11), transparent 40%),
+    rgba(20, 13, 25, .97);
+  box-shadow: 0 24px 70px rgba(12, 4, 10, .42);
+  backdrop-filter: blur(22px);
+}
+
+.appMenuPanel form {
+  margin: 0;
+}
+
+.appMenuItem {
+  width: 100%;
+  display: grid;
+  gap: 3px;
+  padding: 12px 13px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.appMenuItem:hover,
+.appMenuItem:focus-visible {
+  outline: none;
+  background: rgba(255, 235, 245, .065);
+}
+
+.appMenuItem span {
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.appMenuItem small {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.appMenuSignOut {
+  font: inherit;
+}
+
+@media (max-width: 560px) {
+  .appMenuPanel {
+    position: fixed;
+    top: 72px;
+    left: 16px;
+    right: 16px;
+    width: auto;
+  }
+}
