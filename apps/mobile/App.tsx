@@ -39,6 +39,8 @@ function GateMessage({
   body: string;
   onRetry?: () => void;
 }) {
+  const client = supabase;
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.gateContainer}>
@@ -50,10 +52,10 @@ function GateMessage({
             <Text style={styles.secondaryButtonText}>Check access again</Text>
           </Pressable>
         ) : null}
-        {supabase ? (
+        {client ? (
           <Pressable
             style={styles.secondaryButton}
-            onPress={() => void supabase.auth.signOut()}
+            onPress={() => void client.auth.signOut()}
           >
             <Text style={styles.secondaryButtonText}>Sign out</Text>
           </Pressable>
@@ -64,6 +66,7 @@ function GateMessage({
 }
 
 export default function App() {
+  const client = supabase;
   const [ageGatePassed, setAgeGatePassed] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(false);
@@ -71,25 +74,24 @@ export default function App() {
   const [accessReady, setAccessReady] = useState(false);
 
   async function refreshAccess() {
-    if (!supabase || !session) {
+    if (!client || !session) {
       setAccess(null);
       setAccessReady(true);
       return;
     }
 
     setAccessReady(false);
-    const { data, error } = await supabase.rpc("current_access_context");
+    const { data, error } = await client.rpc("current_access_context");
     setAccess(error ? null : (data as AccessContext));
     setAccessReady(true);
   }
 
   useEffect(() => {
-    if (!supabase) {
+    if (!client) {
       setAuthReady(true);
       return;
     }
 
-    const client = supabase;
     void client.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setAuthReady(true);
@@ -110,7 +112,7 @@ export default function App() {
     void refreshAccess();
   }, [session]);
 
-  if (!isSupabaseConfigured || !supabase) {
+  if (!isSupabaseConfigured || !client) {
     return (
       <GateMessage
         title="Identity service not configured."
@@ -134,7 +136,7 @@ export default function App() {
     if (!ageGatePassed) {
       return <AgeGateScreen onEligible={() => setAgeGatePassed(true)} />;
     }
-    return <AuthScreen client={supabase} />;
+    return <AuthScreen client={client} />;
   }
 
   if (!accessReady) {
@@ -210,7 +212,7 @@ export default function App() {
         <Pressable
           accessibilityRole="button"
           style={styles.secondaryButton}
-          onPress={() => void supabase.auth.signOut()}
+          onPress={() => void client.auth.signOut()}
         >
           <Text style={styles.secondaryButtonText}>Sign out</Text>
         </Pressable>
