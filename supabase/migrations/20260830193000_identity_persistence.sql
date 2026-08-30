@@ -190,7 +190,11 @@ declare
   debits numeric(78,0);
   credits numeric(78,0);
 begin
-  target_entry := coalesce(new.entry_id, old.entry_id);
+  if tg_op = 'DELETE' then
+    target_entry := old.entry_id;
+  else
+    target_entry := new.entry_id;
+  end if;
 
   select
     coalesce(sum(amount_minor) filter (where direction = 'debit'), 0),
