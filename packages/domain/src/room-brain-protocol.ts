@@ -6,7 +6,7 @@ export const DEFAULT_RECENT_COMMAND_LIMIT = 256;
 export interface RoomBrainClientEnvelope {
   version: typeof ROOM_BRAIN_PROTOCOL_VERSION;
   commandId: string;
-  expectedSequence?: number;
+  expectedSequence: number;
   command: RoomBrainCommand;
 }
 
@@ -69,7 +69,7 @@ export function applyRoomBrainEnvelope(
     };
   }
 
-  if (envelope.expectedSequence !== undefined && envelope.expectedSequence !== protocol.room.sequence) {
+  if (envelope.expectedSequence !== protocol.room.sequence) {
     return {
       accepted: false,
       duplicate: false,
@@ -111,10 +111,7 @@ export function validateEnvelope(envelope: RoomBrainClientEnvelope): void {
   if (!/^[A-Za-z0-9_-]{8,80}$/.test(envelope.commandId)) {
     throw new Error('Invalid Room Brain command ID');
   }
-  if (
-    envelope.expectedSequence !== undefined &&
-    (!Number.isSafeInteger(envelope.expectedSequence) || envelope.expectedSequence < 0)
-  ) {
+  if (!Number.isSafeInteger(envelope.expectedSequence) || envelope.expectedSequence < 0) {
     throw new Error('Invalid expected sequence');
   }
 }
