@@ -26,3 +26,13 @@ test('room creation is constrained to a World owned by the host', () => {
 test('self-service World membership is limited to published public Worlds', () => {
   assert.match(sql, /world_members_join_self[\s\S]*published_at is not null[\s\S]*visibility = 'public'/i);
 });
+
+
+test('18+ eligibility is enforced at the database boundary', () => {
+  assert.match(sql, /age_attestations_require_adult/i);
+  assert.match(sql, /current_date\s*-\s*interval '18 years'/i);
+});
+
+test('new reports must enter moderation as open', () => {
+  assert.match(sql, /reports_insert_own[\s\S]*status\s*=\s*'open'/i);
+});
