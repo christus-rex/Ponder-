@@ -39,8 +39,8 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: https://wjqcjlcmgeujndxvtprj.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_T-ItORyhh_ptlqmofZXXgA_mvrx4ZgM
         run: |
           set -euo pipefail
           missing=()
@@ -99,8 +99,8 @@ jobs:
 
       - name: Verify web application
         env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: https://wjqcjlcmgeujndxvtprj.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_T-ItORyhh_ptlqmofZXXgA_mvrx4ZgM
           NEXT_PUBLIC_ROOM_BRAIN_WS_URL: ${{ vars.NEXT_PUBLIC_ROOM_BRAIN_WS_URL || secrets.NEXT_PUBLIC_ROOM_BRAIN_WS_URL }}
           ROOM_BRAIN_AUTH_SECRET: ${{ secrets.ROOM_BRAIN_AUTH_SECRET }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -110,8 +110,8 @@ jobs:
 
       - name: Build full-stack Worker
         env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: https://wjqcjlcmgeujndxvtprj.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_T-ItORyhh_ptlqmofZXXgA_mvrx4ZgM
           NEXT_PUBLIC_ROOM_BRAIN_WS_URL: ${{ vars.NEXT_PUBLIC_ROOM_BRAIN_WS_URL || secrets.NEXT_PUBLIC_ROOM_BRAIN_WS_URL }}
           ROOM_BRAIN_AUTH_SECRET: ${{ secrets.ROOM_BRAIN_AUTH_SECRET }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -121,8 +121,8 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: https://wjqcjlcmgeujndxvtprj.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_T-ItORyhh_ptlqmofZXXgA_mvrx4ZgM
           NEXT_PUBLIC_ROOM_BRAIN_WS_URL: ${{ vars.NEXT_PUBLIC_ROOM_BRAIN_WS_URL || secrets.NEXT_PUBLIC_ROOM_BRAIN_WS_URL }}
           ROOM_BRAIN_AUTH_SECRET: ${{ secrets.ROOM_BRAIN_AUTH_SECRET }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
