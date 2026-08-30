@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AgeGateScreen } from './src/screens/AgeGateScreen';
 
 type FeatureCardProps = { title: string; description: string };
 function FeatureCard({ title, description }: FeatureCardProps) {
@@ -7,6 +8,12 @@ function FeatureCard({ title, description }: FeatureCardProps) {
 }
 
 export default function App() {
+  const [ageGatePassed, setAgeGatePassed] = useState(false);
+
+  if (!ageGatePassed) {
+    return <AgeGateScreen onEligible={() => setAgeGatePassed(true)} />;
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
