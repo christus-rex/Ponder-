@@ -1,0 +1,19 @@
+{
+  "name": "ponder-room-brain",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-30",
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "ROOM_BRAIN",
+        "class_name": "RoomBrainDurableObject"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["RoomBrainDurableObject"]
+    }
+  ]
+}
