@@ -11,9 +11,12 @@
     "build:android": "expo export --platform android --output-dir ../../dist/mobile-android"
   },
   "dependencies": {
+    "@react-native-async-storage/async-storage": "latest",
+    "@supabase/supabase-js": "latest",
     "expo": "~57.0.9",
     "react": "19.2.3",
-    "react-native": "0.86.2"
+    "react-native": "0.86.2",
+    "react-native-url-polyfill": "latest"
   },
   "devDependencies": {
     "@types/react": "~19.2.2"
