@@ -22,7 +22,7 @@ Account creation/auth; 18+ age-assurance adapter; creator verification; profiles
 
 ## Explicitly defer
 
-Complex recommendation ML, multiple virtual currencies, crypto, native apps, plugin marketplace, elaborate gamification, dozens of gift animations, multi-region active-active, microservices, and custom codec/video infrastructure.
+Complex recommendation ML, multiple virtual currencies, crypto, marketplace plugins, elaborate gamification, dozens of gift animations, multi-region active-active, microservices, and custom codec/video infrastructure. Native apps are not deleted; they are secondary to the web/PWA launch path.
 
 ## Phases
 

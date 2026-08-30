@@ -43,6 +43,7 @@ Use adapters and auditable records for age assurance, creator KYC, consent/attes
 ```
 apps/
   web/
+  mobile/
   admin/
   api/
 
