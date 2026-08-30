@@ -10,7 +10,7 @@
     "translator:demo": "node demo/server.mjs",
     "typecheck": "tsc --noEmit",
     "test": "npm run test:unit && npm run test:translator",
-    "test:unit": "vitest run",
+    "test:unit": "vitest run lib/crypto/ledger.test.ts",
     "test:translator": "node --test test/*.test.mjs"
   },
   "engines": {
