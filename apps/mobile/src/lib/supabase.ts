@@ -1,3 +1,11 @@
+declare const process: {
+  env: {
+    EXPO_PUBLIC_SUPABASE_URL?: string;
+    EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY?: string;
+    EXPO_PUBLIC_SUPABASE_ANON_KEY?: string;
+  };
+};
+
 import { createClient } from "@supabase/supabase-js";
 
 const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
