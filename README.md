@@ -75,7 +75,9 @@ npm run translator:demo
 
 Then open `http://localhost:8787`.
 
-See `docs/live-ai-translator.md` for room-scale architecture, production hardening, QA, and cost-control strategy.
+The main application now also contains an authenticated `/rooms/lab` track-sidecar integration. It accepts a single `MediaStreamTrack`, mints an ephemeral translation credential on the authenticated backend, and keeps translated audio/captions separate from the room's original audio.
+
+See `docs/live-ai-translator.md` and `docs/room-native-translation.md` for room-scale architecture, production hardening, QA, and cost-control strategy.
 
 ## Architecture boundary
 
@@ -99,7 +101,7 @@ Social activity stays off-chain. Blockchain is reserved for settlement, ownershi
 1. Persist users, profiles, rooms, conversations, wallets, and ledger entries.
 2. Add authentication and profile onboarding.
 3. Add 1:1 messaging and reconnect.
-4. Integrate translator capability into room/session architecture.
+4. Connect the room-native translator sidecar to live RealtimeKit meeting tokens and participant tracks.
 5. Add server-side transaction verification/indexing.
 6. Replace direct test transfers with payment intents and ledger reconciliation.
 7. Add moderation primitives before any mature-content surface.
