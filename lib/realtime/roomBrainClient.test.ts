@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ManagedRoomBrainClient } from "./roomBrainClient";
 
 class FakeSocket extends EventTarget {
-  readyState = WebSocket.OPEN;
+  readyState: number = WebSocket.OPEN;
   sent: string[] = [];
   closeCalls: Array<{ code?: number; reason?: string }> = [];
 
