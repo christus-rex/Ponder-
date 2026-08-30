@@ -4,7 +4,9 @@ export type RouteAccessRequirements = {
   isApiRequest: boolean;
 };
 
-const fullAccessPages = ["/discover", "/rooms"];
+export const POST_AUTH_DESTINATION = "/discover";
+
+const fullAccessPages = [POST_AUTH_DESTINATION, "/rooms"];
 const authenticatedPages = ["/", "/onboarding", "/account"];
 const fullAccessApis = ["/api/translation", "/api/rooms"];
 
