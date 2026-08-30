@@ -41,8 +41,8 @@ export async function verifyRoomBrainToken(
   const valid = await globalThis.crypto.subtle.verify(
     'HMAC',
     key,
-    signature,
-    encoder.encode(body)
+    toArrayBuffer(signature),
+    toArrayBuffer(encoder.encode(body))
   );
 
   if (!valid) throw new Error('Invalid Room Brain token signature');
@@ -104,7 +104,7 @@ async function sign(body: string, secret: string): Promise<Uint8Array> {
   const signature = await globalThis.crypto.subtle.sign(
     'HMAC',
     key,
-    encoder.encode(body)
+    toArrayBuffer(encoder.encode(body))
   );
   return new Uint8Array(signature);
 }
@@ -112,7 +112,7 @@ async function sign(body: string, secret: string): Promise<Uint8Array> {
 async function importHmacKey(secret: string): Promise<CryptoKey> {
   return globalThis.crypto.subtle.importKey(
     'raw',
-    encoder.encode(secret),
+    toArrayBuffer(encoder.encode(secret)),
     { name: 'HMAC', hash: 'SHA-256' },
     false,
     ['sign', 'verify']
@@ -140,4 +140,11 @@ function base64UrlDecode(value: string): Uint8Array {
   }
 
   return Uint8Array.from(binary, (character) => character.charCodeAt(0));
+}
+
+
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return copy.buffer;
 }
