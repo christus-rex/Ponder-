@@ -1,7 +1,7 @@
 {
   "name": "ponder-plus",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "next dev",
@@ -10,7 +10,7 @@
     "translator:demo": "node demo/server.mjs",
     "typecheck": "tsc --noEmit",
     "test": "npm run test:unit && npm run test:translator",
-    "test:unit": "vitest run lib/crypto/ledger.test.ts",
+    "test:unit": "vitest run lib/crypto/ledger.test.ts lib/auth/age.test.ts",
     "test:translator": "node --test test/*.test.mjs"
   },
   "engines": {
@@ -18,6 +18,8 @@
   },
   "dependencies": {
     "@base-org/account": "2.5.5",
+    "@supabase/ssr": "latest",
+    "@supabase/supabase-js": "latest",
     "next": "16.3.3",
     "react": "19.2.8",
     "react-dom": "19.2.8",
