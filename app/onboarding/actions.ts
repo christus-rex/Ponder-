@@ -13,6 +13,12 @@ const allowedIntents = new Set([
   "hang_out",
 ]);
 
+const allowedMaturePreferences = new Set([
+  "standard_mature",
+  "after_dark",
+  "hide_mature_topics",
+]);
+
 function field(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
 }
@@ -27,6 +33,8 @@ export async function saveProfile(formData: FormData) {
   const displayName = field(formData, "display_name");
   const bio = field(formData, "bio");
   const intent = field(formData, "intent");
+  const maturePreference = field(formData, "mature_content_preference");
+  const acceptedTermsThisSubmit = formData.get("terms_acceptance") === "on";
   const interests = field(formData, "interests")
     .split(",")
     .map((value) => value.trim())
@@ -42,7 +50,40 @@ export async function saveProfile(formData: FormData) {
   if (!allowedIntents.has(intent)) {
     throw new Error("Choose a valid social intent.");
   }
+  if (!allowedMaturePreferences.has(maturePreference)) {
+    throw new Error("Choose a valid mature-content preference.");
+  }
 
+  const { data: privateRecord, error: privateError } = await supabase
+    .from("user_private")
+    .select("terms_accepted_at")
+    .eq("id", userData.user.id)
+    .maybeSingle();
+
+  if (privateError) throw new Error(privateError.message);
+
+  if (!privateRecord?.terms_accepted_at && !acceptedTermsThisSubmit) {
+    throw new Error("Accept the Ponder+ Alpha Terms and Community Safety rules to continue.");
+  }
+
+  const { error: preferencesError } = await supabase
+    .from("user_preferences")
+    .update({ mature_content_preference: maturePreference })
+    .eq("id", userData.user.id);
+
+  if (preferencesError) throw new Error(preferencesError.message);
+
+  if (!privateRecord?.terms_accepted_at) {
+    const { error: termsError } = await supabase
+      .from("user_private")
+      .update({ terms_accepted_at: new Date().toISOString() })
+      .eq("id", userData.user.id);
+
+    if (termsError) throw new Error(termsError.message);
+  }
+
+  // Mark onboarding complete last. The database independently verifies that
+  // Terms are accepted and a preferences row exists before allowing this write.
   const { error } = await supabase
     .from("profiles")
     .update({
