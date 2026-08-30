@@ -1,0 +1,135 @@
+name: Deploy Full Ponder+ App
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+      - "lib/**"
+      - "packages/**"
+      - "services/**"
+      - "proxy.ts"
+      - "next.config.ts"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/deploy-cloudflare.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ponder-plus-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Check production configuration
+        id: config
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          set -euo pipefail
+          missing=()
+          [[ -z "${CLOUDFLARE_API_TOKEN:-}" ]] && missing+=("CLOUDFLARE_API_TOKEN")
+          [[ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]] && missing+=("CLOUDFLARE_ACCOUNT_ID")
+          [[ -z "${NEXT_PUBLIC_SUPABASE_URL:-}" ]] && missing+=("NEXT_PUBLIC_SUPABASE_URL")
+          [[ -z "${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:-}" ]] && missing+=("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY")
+
+          if (( ${#missing[@]} > 0 )); then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "## Full Ponder+ deployment is configured but not activated"
+              echo
+              echo "Add the following repository Actions secrets/variables, then re-run this workflow:"
+              printf -- "- %s\n" "${missing[@]}"
+              echo
+              echo "No secret values were printed or persisted by this workflow."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "Production configuration is present." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Install application dependencies
+        if: steps.config.outputs.ready == 'true'
+        run: npm ci
+
+      - name: Install Cloudflare adapter without changing lockfile
+        if: steps.config.outputs.ready == 'true'
+        run: npm install --no-save --package-lock=false @opennextjs/cloudflare@latest wrangler@latest
+
+      - name: Generate Cloudflare runtime configuration
+        if: steps.config.outputs.ready == 'true'
+        shell: bash
+        run: |
+          cat > open-next.config.ts <<'CONFIG'
+          import { defineCloudflareConfig } from "@opennextjs/cloudflare";
+
+          export default defineCloudflareConfig();
+          CONFIG
+
+          cat > wrangler.jsonc <<'CONFIG'
+          {
+            "$schema": "./node_modules/wrangler/config-schema.json",
+            "name": "ponder-plus",
+            "main": ".open-next/worker.js",
+            "compatibility_date": "2026-08-30",
+            "compatibility_flags": ["nodejs_compat"],
+            "assets": {
+              "directory": ".open-next/assets",
+              "binding": "ASSETS"
+            },
+            "observability": {
+              "enabled": true
+            }
+          }
+          CONFIG
+
+      - name: Verify web application
+        if: steps.config.outputs.ready == 'true'
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+          NEXT_PUBLIC_ROOM_BRAIN_WS_URL: ${{ vars.NEXT_PUBLIC_ROOM_BRAIN_WS_URL || secrets.NEXT_PUBLIC_ROOM_BRAIN_WS_URL }}
+          ROOM_BRAIN_AUTH_SECRET: ${{ secrets.ROOM_BRAIN_AUTH_SECRET }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          npm run typecheck:web
+          npm run test:web
+
+      - name: Build full-stack Worker
+        if: steps.config.outputs.ready == 'true'
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+          NEXT_PUBLIC_ROOM_BRAIN_WS_URL: ${{ vars.NEXT_PUBLIC_ROOM_BRAIN_WS_URL || secrets.NEXT_PUBLIC_ROOM_BRAIN_WS_URL }}
+          ROOM_BRAIN_AUTH_SECRET: ${{ secrets.ROOM_BRAIN_AUTH_SECRET }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: npx opennextjs-cloudflare build
+
+      - name: Deploy authenticated Ponder+ to Cloudflare Workers
+        if: steps.config.outputs.ready == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+          NEXT_PUBLIC_ROOM_BRAIN_WS_URL: ${{ vars.NEXT_PUBLIC_ROOM_BRAIN_WS_URL || secrets.NEXT_PUBLIC_ROOM_BRAIN_WS_URL }}
+          ROOM_BRAIN_AUTH_SECRET: ${{ secrets.ROOM_BRAIN_AUTH_SECRET }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: npx wrangler deploy
