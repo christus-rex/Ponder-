@@ -20,4 +20,5 @@ jobs:
           node-version: "22.13.0"
           cache: npm
       - run: npm ci
+      - run: npm run audit:ci
       - run: npm run qa
