@@ -4,3 +4,4 @@ export * from './media.ts';
 export * from './onboarding.ts';
 export * from './room-brain.ts';
 export * from './room-brain-protocol.ts';
+export * from './room-brain-auth.ts';
