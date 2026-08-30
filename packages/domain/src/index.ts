@@ -11,3 +11,4 @@ export * from './room-brain-transport.ts';
 export * from './room-brain-client-sync.ts';
 export * from './room-brain-presence.ts';
 export * from './room-brain-token.ts';
+export * from './room-media-session.ts';
