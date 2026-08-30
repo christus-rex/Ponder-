@@ -1,25 +1,25 @@
 # Ponder+
 
-Ponder+ is an 18+ creator-centered live-social product focused on mature conversation, creator-led communities, live rooms, and meaningful connection.
+Ponder+ is an 18+ live-social product focused on mature conversation, creator-led communities, live rooms, and meaningful connection.
 
 This repository is the canonical engineering source for the project.
 
-## Product and distribution direction
+## Initial engineering direction
 
-- Primary client: responsive web app / PWA
-- Optional later companion clients: Expo + React Native
+- Primary product: responsive web app / PWA
+- Mobile companion: Expo + React Native + TypeScript, later phase
 - Backend: TypeScript modular monolith + Postgres
-- Initial data platform: Supabase/Postgres, subject to vendor/business-model approval
+- Initial data platform: Supabase/Postgres, subject to provider approval for the business model
 - Realtime media: provider abstraction; vendor chosen only after explicit business-model approval
-- Media/object storage: provider abstraction; lifecycle and signed-access controls required
-- Moderation: layered product controls + automation + human review
+- Media storage: provider abstraction with signed access and lifecycle controls
+- Moderation: layered product controls + automated signals + human review
 - Economy: append-only double-entry ledger; real-money settlement remains server-side
 - CI/QA: GitHub Actions + typecheck/lint/unit/integration/E2E gates
 
 ## Non-negotiable principles
 
 - Adults only; no minors.
-- No anonymous-random-chat architecture as the core product.
+- No anonymous random-chat architecture as the core product.
 - Trust, consent, moderation, and auditability ship in the MVP.
 - Provider-specific logic stays behind adapters.
 - No secrets or production credentials in Git.
