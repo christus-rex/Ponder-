@@ -112,6 +112,6 @@ Social activity stays off-chain. Blockchain is reserved for settlement, ownershi
 - Every monetary state transition must be idempotent and auditable.
 - Testnet precedes mainnet.
 - Mature/adult experiences must not be used to bypass payment, app-store, identity, sanctions, or legal requirements.
-- Base Account is temporarily pinned to 2.5.5 because later 2.5.x releases currently pull a vulnerable Axios dependency through the CDP SDK; revisit this pin when the upstream chain is patched.
+- Base Account is temporarily pinned to 2.5.5 and Axios is overridden to the patched 1.20.0 release because the current CDP dependency chain can otherwise resolve to a vulnerable Axios version; revisit both constraints when the upstream chain is patched.
 
 Development begins on feature branches and is merged through pull requests.
