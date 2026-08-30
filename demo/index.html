@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ponder+ Working Demo</title>
+<style>
+:root{--bg:#08090f;--p:#111522;--b:#2a3044;--t:#f7f7fb;--m:#9ca4b6;--v:#6f64ff;--c:#67e8dc;--g:#f2c66d;--d:#ff7b87}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 15% 0,#1b153d 0,#0b0d16 38%,#08090f 72%);color:var(--t);font-family:Inter,system-ui,sans-serif}
+button,input{font:inherit}.app{max-width:1180px;margin:auto;padding:20px}.top{display:flex;justify-content:space-between;align-items:center}.brand{font-size:28px;font-weight:900}.brand b{color:var(--g)}.pill{font-size:12px;color:var(--m);border:1px solid var(--b);padding:7px 10px;border-radius:999px}
+.screen{display:none}.screen.on{display:block}.card{background:linear-gradient(180deg,#141827,#0e1119);border:1px solid var(--b);border-radius:22px}.age{display:grid;grid-template-columns:1.1fr .9fr;gap:16px;margin-top:22px}.pad{padding:28px}
+.ey{font-size:12px;font-weight:900;letter-spacing:2px;color:var(--c)}h1{font-size:46px;line-height:1.02;margin:10px 0}.sub{color:var(--m);line-height:1.6}.field{margin:22px 0}.field label{display:block;font-weight:800;font-size:13px;margin-bottom:8px}.field input{width:100%;padding:16px;border-radius:15px;border:1px solid #384057;background:#0b0e15;color:white;font-size:20px;outline:none}
+.primary,.secondary,.danger{padding:13px 15px;border-radius:14px;font-weight:900;cursor:pointer}.primary{border:0;background:linear-gradient(135deg,#6f64ff,#8b5cf6);color:#fff}.primary:disabled{opacity:.4}.secondary{background:#151928;border:1px solid #31384e;color:#fff}.danger{background:#2b151c;border:1px solid #71343c;color:#ffadb5}.err{min-height:20px;color:#ff9aa5;font-size:13px;margin-top:7px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:15px;margin-top:18px}.room{overflow:hidden}.cover{height:130px;background:linear-gradient(135deg,#2b2152,#173944);position:relative}.live{position:absolute;top:12px;left:12px;background:#ff5168;padding:5px 8px;border-radius:8px;font-size:11px;font-weight:900}.body{padding:15px}.body h3{margin:0 0 5px}.meta{font-size:13px;color:var(--m)}
+.layout{display:grid;grid-template-columns:1fr 340px;gap:15px;margin-top:18px}.stage{overflow:hidden}.stagehead{padding:15px;display:flex;justify-content:space-between;border-bottom:1px solid var(--b)}.videos{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px;background:#090b12}.video{min-height:230px;border-radius:18px;background:linear-gradient(145deg,#1c2440,#1a3033);border:1px solid #303950;padding:16px;display:flex;align-items:flex-end;position:relative}.role{position:absolute;top:12px;left:12px;font-size:10px;background:#0008;padding:5px 7px;border-radius:999px}.controls{display:flex;gap:8px;flex-wrap:wrap;padding:12px}.react{background:#151928;border:1px solid #31384e;color:white;border-radius:12px;padding:10px}.side{display:flex;flex-direction:column;gap:14px}.box{padding:14px}.title{font-size:12px;font-weight:900;letter-spacing:1px;margin-bottom:9px}.log{height:210px;overflow:auto;display:flex;flex-direction:column;gap:7px}.event,.msg{padding:8px 9px;border-radius:10px;background:#0d111c;font-size:12px}.event{border-left:3px solid var(--c)}.seq{color:var(--g);font-weight:900}.wallet{display:flex;justify-content:space-between}.coin{color:var(--g);font-size:22px;font-weight:900}.gifts{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.gift{background:#111521;border:1px solid var(--b);color:#fff;border-radius:12px;padding:10px}.gift small{color:var(--g)}.chatrow{display:flex;gap:7px;margin-top:8px}.chatrow input{flex:1;background:#0d1018;border:1px solid #30374c;color:white;padding:10px;border-radius:11px}
+.overlay{position:fixed;inset:0;background:#000b;display:none;place-items:center;padding:20px}.overlay.on{display:grid}.modal{width:min(500px,100%);padding:20px}.opts{display:grid;grid-template-columns:1fr 1fr;gap:7px}.opt{background:#111521;border:1px solid var(--b);color:#fff;padding:10px;border-radius:11px}.opt.sel{border-color:var(--d)}.toast{position:fixed;bottom:25px;left:50%;transform:translateX(-50%);background:#101522;border:1px solid #343d55;padding:12px 14px;border-radius:12px;opacity:0;transition:.2s}.toast.on{opacity:1}
+@media(max-width:850px){.age,.layout{grid-template-columns:1fr}.grid{grid-template-columns:1fr 1fr}.videos{grid-template-columns:1fr}}@media(max-width:600px){.grid{grid-template-columns:1fr}h1{font-size:36px}}
+</style>
+</head>
+<body>
+<div class="app">
+<div class="top"><div class="brand">Ponder<b>+</b></div><div class="pill">Interactive Alpha Demo</div></div>
+<section id="age" class="screen on"><div class="age">
+<div class="card pad"><div class="ey">ADULTS 18+ ONLY</div><h1>Live social for grown-ups.</h1><p class="sub">Live conversation, creator communities, nightlife culture, relationships, and meaningful connection.</p>
+<div class="field"><label>Date of birth</label><input id="dob" maxlength="10" placeholder="MM/DD/YYYY"><div id="ageErr" class="err"></div></div><button id="enter" class="primary" disabled>Enter Ponder+</button></div>
+<div class="card pad"><div style="font-size:34px;font-weight:900">18+</div><h2>Privacy-conscious by design</h2><p class="sub">DOB is private account data and never part of a public profile. Production eligibility is checked again by the backend/database.</p></div>
+</div></section>
+<section id="home" class="screen"><div style="margin-top:22px"><div class="ey">DISCOVER</div><h1 style="font-size:38px">Rooms worth joining</h1></div><div class="grid">
+<div class="card room"><div class="cover"><span class="live">LIVE</span></div><div class="body"><h3>Midnight Questions</h3><div class="meta">Maya • Salon • 238 watching</div><button id="join" class="primary" style="width:100%;margin-top:13px">Join room</button></div></div>
+<div class="card room"><div class="cover" style="background:linear-gradient(135deg,#18352f,#1b2545)"><span class="live">LIVE</span></div><div class="body"><h3>The Art of Disagreement</h3><div class="meta">Andre • Debate</div><button class="secondary" style="width:100%;margin-top:13px" onclick="say('Preview only in this demo')">Preview</button></div></div>
+<div class="card room"><div class="cover" style="background:linear-gradient(135deg,#49351d,#262147)"><span class="live">LIVE</span></div><div class="body"><h3>Slow Sunday Lounge</h3><div class="meta">Nia • Music</div><button class="secondary" style="width:100%;margin-top:13px" onclick="say('Preview only in this demo')">Preview</button></div></div>
+</div></section>
+<section id="room" class="screen"><div class="layout">
+<div class="card stage"><div class="stagehead"><div><b>Midnight Questions</b><div class="meta">Salon • After Dark • 18+</div></div><button id="leave" class="secondary">Leave</button></div>
+<div class="videos"><div class="video"><span class="role">HOST</span><div><b>Maya</b><div class="meta">What does genuine intimacy require?</div></div></div><div class="video"><span class="role">SPEAKER</span><div><b>Jules</b><div class="meta">New York</div></div></div></div>
+<div class="controls"><button id="seat" class="secondary">Request a seat</button><button class="react" data-r="🔥">🔥 <span>12</span></button><button class="react" data-r="💡">💡 <span>8</span></button><button class="react" data-r="❤️">❤️ <span>19</span></button><button id="report" class="danger">Report</button></div></div>
+<div class="side">
+<div class="card box wallet"><div><div class="meta">Demo wallet</div><div class="coin">◈ <span id="bal">650</span></div></div><div class="pill">PONDER_DEMO</div></div>
+<div class="card box"><div class="title">SEND A GIFT</div><div class="gifts"><button class="gift" data-g="25">✨<br>Spark<br><small>25</small></button><button class="gift" data-g="100">🌟<br>Glow<br><small>100</small></button><button class="gift" data-g="500">🌌<br>Constellation<br><small>500</small></button></div></div>
+<div class="card box"><div class="title">ROOM CHAT</div><div id="chat" class="log"><div class="msg"><b>Rae</b> — Honesty without timing can still be cruelty.</div><div class="msg"><b>Maya</b> — Keep going 👀</div></div><div class="chatrow"><input id="chatIn" maxlength="180" placeholder="Say something thoughtful…"><button id="send" class="secondary">Send</button></div></div>
+<div class="card box"><div class="title">ROOM BRAIN · LIVE STATE</div><div id="events" class="log"></div><div class="meta">Monotonic sequence • retry-safe concept • resync model</div></div>
+</div></div></section>
+</div>
+<div id="reportBox" class="overlay"><div class="card modal"><h3>Report this room</h3><div class="opts"><button class="opt">Harassment</button><button class="opt">Hate</button><button class="opt">Sexual content</button><button class="opt">Violence</button><button class="opt">Underage concern</button><button class="opt">Other</button></div><div style="display:flex;gap:8px;margin-top:14px"><button id="cancel" class="secondary">Cancel</button><button id="submit" class="danger">Submit report</button></div></div></div>
+<div id="toast" class="toast"></div>
+<script>
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];let seq=0,seat=false,bal=650,reason=null;
+function show(id){$$('.screen').forEach(x=>x.classList.remove('on'));$('#'+id).classList.add('on')}
+function say(t){let x=$('#toast');x.textContent=t;x.classList.add('on');setTimeout(()=>x.classList.remove('on'),1500)}window.say=say;
+function ev(t,d){seq++;let x=document.createElement('div');x.className='event';x.innerHTML='<span class="seq">#'+seq+'</span> · <b>'+t+'</b><br>'+d;$('#events').prepend(x)}
+function fmt(v){let d=v.replace(/\D/g,'').slice(0,8);return d.length<=2?d:d.length<=4?d.slice(0,2)+'/'+d.slice(2):d.slice(0,2)+'/'+d.slice(2,4)+'/'+d.slice(4)}
+function adult(v){let m=/^(\d{2})\/(\d{2})\/(\d{4})$/.exec(v);if(!m)return false;let mo=+m[1],da=+m[2],y=+m[3],b=new Date(y,mo-1,da);if(b.getFullYear()!=y||b.getMonth()!=mo-1||b.getDate()!=da)return false;let n=new Date(),a=n.getFullYear()-y;if(n.getMonth()+1<mo||(n.getMonth()+1===mo&&n.getDate()<da))a--;return a>=18}
+$('#dob').oninput=e=>{e.target.value=fmt(e.target.value);$('#enter').disabled=e.target.value.length!==10;$('#ageErr').textContent=''};
+$('#enter').onclick=()=>{if(!adult($('#dob').value)){ $('#ageErr').textContent='Ponder+ is available only to adults age 18 and older.';return}show('home');say('Age gate passed')};
+$('#join').onclick=()=>{show('room');ev('JOIN','viewer joined Midnight Questions');ev('SNAPSHOT','room state synchronized')};$('#leave').onclick=()=>show('home');
+$('#seat').onclick=()=>{seat=!seat;$('#seat').textContent=seat?'Cancel seat request':'Request a seat';ev(seat?'REQUEST_SEAT':'CANCEL_SEAT',seat?'viewer entered speaker queue':'viewer left speaker queue')};
+$$('.react').forEach(b=>b.onclick=()=>{let s=b.querySelector('span');s.textContent=+s.textContent+1;ev('REACTION',b.dataset.r+' aggregated → '+s.textContent)});
+$$('.gift').forEach(b=>b.onclick=()=>{let p=+b.dataset.g;if(p>bal){say('Insufficient demo balance');ev('GIFT_REJECTED','insufficient balance');return}bal-=p;$('#bal').textContent=bal;ev('GIFT_SETTLED',p+' PONDER_DEMO debited before animation');say('Gift sent ✨')});
+$('#send').onclick=()=>{let i=$('#chatIn'),t=i.value.trim();if(!t)return;let x=document.createElement('div');x.className='msg';x.textContent='You — '+t;$('#chat').append(x);i.value='';ev('CHAT_ACCEPTED','demo message published')};
+$('#report').onclick=()=>$('#reportBox').classList.add('on');$('#cancel').onclick=()=>$('#reportBox').classList.remove('on');
+$$('.opt').forEach(o=>o.onclick=()=>{reason=o.textContent;$$('.opt').forEach(x=>x.classList.remove('sel'));o.classList.add('sel')});
+$('#submit').onclick=()=>{if(!reason){say('Choose a reason');return}ev('REPORT_OPEN','reason='+reason+'; status=open');$('#reportBox').classList.remove('on');say('Report submitted')};
+</script></body></html>
