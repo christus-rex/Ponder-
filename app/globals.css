@@ -1,13 +1,16 @@
 :root {
   color-scheme: dark;
-  --bg: #07090d;
-  --panel: rgba(255, 255, 255, 0.055);
-  --panel-strong: rgba(255, 255, 255, 0.085);
-  --text: #f5f7fb;
-  --muted: #a9b1c0;
-  --line: rgba(255, 255, 255, 0.11);
-  --accent: #8ee6c5;
-  --accent-2: #8cb4ff;
+  --bg: #0b0710;
+  --bg-soft: #140d19;
+  --panel: rgba(255, 245, 250, 0.055);
+  --panel-strong: rgba(255, 240, 248, 0.09);
+  --text: #fff8fb;
+  --muted: #c5b6c2;
+  --line: rgba(255, 225, 239, 0.13);
+  --accent: #f3a9c6;
+  --accent-2: #c8b6ff;
+  --accent-3: #f4d9b2;
+  --rose-glow: rgba(243, 169, 198, 0.22);
 }
 
 * { box-sizing: border-box; }
@@ -17,8 +20,9 @@ html { scroll-behavior: smooth; }
 body {
   margin: 0;
   background:
-    radial-gradient(circle at 15% 0%, rgba(61, 97, 126, 0.28), transparent 35%),
-    radial-gradient(circle at 85% 10%, rgba(59, 140, 112, 0.20), transparent 30%),
+    radial-gradient(circle at 12% 0%, rgba(164, 92, 139, 0.28), transparent 36%),
+    radial-gradient(circle at 88% 8%, rgba(127, 104, 183, 0.22), transparent 31%),
+    radial-gradient(circle at 50% 85%, rgba(173, 94, 130, 0.10), transparent 38%),
     var(--bg);
   color: var(--text);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -53,11 +57,12 @@ button { color: inherit; }
 .brandMark {
   width: 35px;
   height: 35px;
-  border-radius: 12px;
+  border-radius: 50%;
   display: grid;
   place-items: center;
-  color: #08120f;
-  background: linear-gradient(135deg, var(--accent), #d8fff1);
+  color: #24111b;
+  box-shadow: 0 0 28px rgba(243, 169, 198, .25);
+  background: linear-gradient(135deg, #ffd5e6, var(--accent), var(--accent-2));
 }
 
 .statusPill, .quietMetric {
@@ -84,9 +89,11 @@ button { color: inherit; }
 }
 
 .hero h1 {
+  font-family: Georgia, "Times New Roman", serif;
   font-size: clamp(54px, 9vw, 104px);
-  letter-spacing: -0.065em;
-  line-height: 0.88;
+  font-weight: 600;
+  letter-spacing: -0.055em;
+  line-height: 0.9;
   margin: 22px 0 30px;
 }
 
@@ -114,13 +121,14 @@ button { color: inherit; }
 }
 
 .primaryButton {
-  background: var(--text);
-  color: #090b0f;
-  border-color: var(--text);
+  background: linear-gradient(135deg, #ffd7e6, var(--accent));
+  color: #28131d;
+  border-color: rgba(255, 224, 237, .72);
+  box-shadow: 0 10px 30px rgba(178, 81, 122, .18);
 }
 
 .secondaryButton, .roomButton, .walletButton {
-  background: rgba(255,255,255,.04);
+  background: rgba(255, 236, 246, .045);
   color: var(--text);
 }
 
@@ -132,9 +140,10 @@ button { color: inherit; }
 .panel {
   border: 1px solid var(--line);
   background: linear-gradient(135deg, var(--panel-strong), var(--panel));
-  border-radius: 28px;
+  border-radius: 32px;
   padding: 28px;
-  backdrop-filter: blur(14px);
+  backdrop-filter: blur(18px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.035), 0 24px 70px rgba(24, 8, 18, .18);
 }
 
 .intentPanel {
@@ -146,8 +155,10 @@ button { color: inherit; }
 
 h2 {
   margin: 8px 0 0;
+  font-family: Georgia, "Times New Roman", serif;
   font-size: clamp(28px, 4vw, 44px);
-  letter-spacing: -0.04em;
+  font-weight: 600;
+  letter-spacing: -0.035em;
   line-height: 1.06;
 }
 
@@ -160,7 +171,7 @@ h2 {
 
 .chip {
   border: 1px solid var(--line);
-  background: rgba(255,255,255,.05);
+  background: rgba(255, 235, 245, .05);
   border-radius: 999px;
   padding: 10px 13px;
   cursor: pointer;
@@ -187,8 +198,10 @@ h2 {
 .roomCard {
   min-height: 285px;
   border: 1px solid var(--line);
-  background: rgba(255,255,255,.035);
-  border-radius: 24px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(243, 169, 198, .08), transparent 38%),
+    rgba(255, 238, 246, .035);
+  border-radius: 28px;
   padding: 24px;
   display: flex;
   flex-direction: column;
@@ -225,10 +238,11 @@ h2 {
 .principles { padding-left: 18px; }
 
 .walletCard {
-  border: 1px solid rgba(142, 230, 197, .28);
+  border: 1px solid rgba(243, 169, 198, .28);
   background:
-    radial-gradient(circle at 90% 10%, rgba(142, 230, 197, .12), transparent 34%),
-    rgba(255,255,255,.055);
+    radial-gradient(circle at 90% 10%, rgba(243, 169, 198, .14), transparent 34%),
+    radial-gradient(circle at 5% 90%, rgba(200, 182, 255, .08), transparent 28%),
+    rgba(255, 241, 247, .055);
   border-radius: 28px;
   padding: 24px;
 }
@@ -244,7 +258,7 @@ h2 {
   font-size: 12px;
   font-weight: 800;
   color: var(--accent);
-  border: 1px solid rgba(142, 230, 197, .25);
+  border: 1px solid rgba(243, 169, 198, .28);
   border-radius: 999px;
   padding: 7px 10px;
 }
@@ -280,7 +294,7 @@ h2 {
 
 .tipAmount[data-active="true"] {
   background: var(--accent);
-  color: #07100d;
+  color: #2b1420;
   border-color: var(--accent);
 }
 
@@ -398,16 +412,16 @@ footer {
   place-items: center;
   font-weight: 800;
   color: #08120f;
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  background: linear-gradient(135deg, #ffd5e5, var(--accent), var(--accent-2));
 }
 
 .translationLab {
   margin: 18px 0 0;
   padding: 28px;
-  border: 1px solid rgba(142,230,197,.24);
+  border: 1px solid rgba(243,169,198,.24);
   border-radius: 28px;
   background:
-    radial-gradient(circle at 100% 0%, rgba(140,180,255,.12), transparent 34%),
+    radial-gradient(circle at 100% 0%, rgba(200,182,255,.14), transparent 34%),
     linear-gradient(135deg, var(--panel-strong), var(--panel));
 }
 
@@ -463,7 +477,7 @@ footer {
 }
 
 .translationTranscriptCard.translated {
-  background: rgba(89,82,150,.12);
+  background: rgba(126, 73, 120, .14);
 }
 
 .translationTranscriptCard p {
@@ -533,4 +547,72 @@ footer {
   .architectureSteps {
     grid-template-columns: 1fr;
   }
+}
+
+
+/* Feminine editorial system */
+::selection {
+  background: rgba(243, 169, 198, .34);
+  color: var(--text);
+}
+
+a {
+  color: inherit;
+}
+
+input,
+textarea,
+select {
+  width: 100%;
+  margin-top: 7px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255, 242, 248, .045);
+  color: var(--text);
+  padding: 12px 14px;
+  outline: none;
+  transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: rgba(243, 169, 198, .62);
+  box-shadow: 0 0 0 4px rgba(243, 169, 198, .10);
+  background: rgba(255, 242, 248, .065);
+}
+
+label {
+  color: #eadce5;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.notice {
+  border: 1px solid rgba(243,169,198,.2);
+  border-radius: 18px;
+  background: rgba(243,169,198,.055);
+  color: var(--muted);
+  padding: 14px 16px;
+}
+
+.roomCard,
+.participantTile,
+.translationTranscriptCard,
+.walletCard {
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.025);
+}
+
+.roomCard:hover {
+  border-color: rgba(243,169,198,.28);
+  transform: translateY(-2px);
+}
+
+.roomCard {
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.eyebrow,
+.sectionLabel {
+  text-shadow: 0 0 24px rgba(243,169,198,.18);
 }

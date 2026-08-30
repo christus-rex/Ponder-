@@ -70,7 +70,7 @@ export function AgeGateScreen({ onEligible }: AgeGateScreenProps) {
               if (error) setError(null);
             }}
             placeholder="MM/DD/YYYY"
-            placeholderTextColor="#6f7385"
+            placeholderTextColor="#8f7d89"
             style={styles.input}
             value={birthDateInput}
           />
@@ -122,19 +122,19 @@ function formatBirthDateInput(value: string): string {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#08090f' },
+  safeArea: { flex: 1, backgroundColor: '#0b0710' },
   container: { flex: 1, justifyContent: 'center', padding: 24, gap: 18 },
-  eyebrow: { color: '#7ce8df', fontSize: 12, fontWeight: '800', letterSpacing: 2 },
-  title: { color: '#f7f7fb', fontSize: 36, lineHeight: 42, fontWeight: '800', letterSpacing: -1.2 },
-  body: { color: '#b8b9c6', fontSize: 17, lineHeight: 25 },
+  eyebrow: { color: '#f3a9c6', fontSize: 12, fontWeight: '800', letterSpacing: 2 },
+  title: { color: '#fff8fb', fontSize: 36, lineHeight: 42, fontWeight: '800', letterSpacing: -1.2 },
+  body: { color: '#c7b8c3', fontSize: 17, lineHeight: 25 },
   form: { gap: 8 },
-  label: { color: '#e6e7ee', fontSize: 14, fontWeight: '700' },
+  label: { color: '#eadce5', fontSize: 14, fontWeight: '700' },
   input: {
     borderWidth: 1,
-    borderColor: '#34374a',
+    borderColor: '#4b3142',
     borderRadius: 16,
-    backgroundColor: '#11131d',
-    color: '#fff',
+    backgroundColor: '#171019',
+    color: '#fff8fb',
     fontSize: 20,
     letterSpacing: 1,
     paddingHorizontal: 16,
@@ -145,10 +145,10 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingVertical: 16,
     alignItems: 'center',
-    backgroundColor: '#5f5df7'
+    backgroundColor: '#f3a9c6'
   },
   buttonDisabled: { opacity: 0.4 },
   buttonPressed: { opacity: 0.82 },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '800' },
-  footnote: { color: '#7d8193', fontSize: 12, lineHeight: 18 }
+  buttonText: { color: '#2b1420', fontSize: 16, fontWeight: '800' },
+  footnote: { color: '#988590', fontSize: 12, lineHeight: 18 }
 });
