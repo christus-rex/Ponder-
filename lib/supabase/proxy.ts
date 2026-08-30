@@ -1,21 +1,12 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { getRouteAccessRequirements } from "@/lib/auth/routeAccess";
 import { isSupabaseConfigured } from "./config";
 
 type AccessContext = {
   account_status?: string;
   can_enter?: boolean;
 };
-
-const fullAccessPages = ["/discover", "/rooms"];
-const authenticatedPages = ["/onboarding", "/account"];
-const fullAccessApis = ["/api/translation", "/api/rooms"];
-
-function matchesPrefix(pathname: string, prefixes: string[]) {
-  return prefixes.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
-  );
-}
 
 function copySessionCookies(source: NextResponse, target: NextResponse) {
   source.cookies.getAll().forEach(({ name, value }) => {
@@ -26,12 +17,8 @@ function copySessionCookies(source: NextResponse, target: NextResponse) {
 
 export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
-  const needsFullAccess =
-    matchesPrefix(pathname, fullAccessPages) ||
-    matchesPrefix(pathname, fullAccessApis);
-  const needsAuthentication =
-    needsFullAccess || matchesPrefix(pathname, authenticatedPages);
-  const isApiRequest = pathname.startsWith("/api/");
+  const { needsFullAccess, needsAuthentication, isApiRequest } =
+    getRouteAccessRequirements(pathname);
 
   if (!isSupabaseConfigured()) {
     if (!needsAuthentication) {
