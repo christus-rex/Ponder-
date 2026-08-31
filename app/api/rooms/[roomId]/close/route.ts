@@ -68,6 +68,8 @@ export async function POST(
       runtime.roomStore,
       runtime.mediaStore,
       runtime.controlPlane,
+      runtime.sessionStore,
+      runtime.participantRevoker,
       {
         roomId,
         createdBy: userData.user.id,
