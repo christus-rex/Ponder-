@@ -228,7 +228,11 @@ describe("revokeTrackedMediaSessionsForRoom", () => {
     await expect(
       revokeTrackedMediaSessionsForRoom(store, revoker, "room-1"),
     ).rejects.toThrow("reconciliation required");
-    expect(events).toEqual(["revoke-failed"]);
+    expect(events).toEqual([
+      "revoke-failed",
+      "revoke-failed",
+      "revoke-failed",
+    ]);
   });
 });
 
