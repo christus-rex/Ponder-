@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { LiveTranslationLab } from "@/components/LiveTranslationLab";
+import { PresenceHeartbeat } from "@/components/PresenceHeartbeat";
 
 const participants = [
   { name: "Maya", detail: "English · speaking" },
@@ -16,6 +17,7 @@ export default async function RoomLabPage() {
 
   return (
     <main className="shell">
+      <PresenceHeartbeat />
       <nav className="nav">
         <a className="brand" href="/discover">
           <span className="brandMark">P+</span>
