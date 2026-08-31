@@ -154,3 +154,93 @@ describe("createSupabaseRoomMembershipAdminStore", () => {
     ]);
   });
 });
+
+
+describe("server-owned normal leave", () => {
+  it("marks an active membership left without changing enforcement state", async () => {
+    let readCount = 0;
+    const updates: unknown[] = [];
+    const query = {
+      select() {
+        return query;
+      },
+      eq() {
+        return query;
+      },
+      is() {
+        return query;
+      },
+      async maybeSingle() {
+        readCount += 1;
+        if (readCount === 1) {
+          return {
+            data: {
+              room_id: "room-1",
+              user_id: "user-1",
+              entry_state: "active",
+              left_at: null,
+              ejected_at: null,
+            },
+            error: null,
+          };
+        }
+        return {
+          data: { entry_state: "active" },
+          error: null,
+        };
+      },
+      update(value: unknown) {
+        updates.push(value);
+        return query;
+      },
+    };
+    const client = {
+      from() {
+        return query;
+      },
+    } as unknown as SupabaseClient;
+
+    const store = createSupabaseRoomMembershipAdminStore(client);
+    await expect(
+      store.markMembershipLeft("room-1", "user-1"),
+    ).resolves.toBe("active");
+
+    expect(updates).toHaveLength(1);
+    expect(updates[0]).toEqual(
+      expect.objectContaining({ left_at: expect.any(String) }),
+    );
+  });
+
+  it("never rewrites an ejected membership during normal leave", async () => {
+    const query = {
+      select() {
+        return query;
+      },
+      eq() {
+        return query;
+      },
+      async maybeSingle() {
+        return {
+          data: {
+            room_id: "room-1",
+            user_id: "user-1",
+            entry_state: "ejected",
+            left_at: "2026-08-31T09:01:00.000Z",
+            ejected_at: "2026-08-31T09:01:00.000Z",
+          },
+          error: null,
+        };
+      },
+    };
+    const client = {
+      from() {
+        return query;
+      },
+    } as unknown as SupabaseClient;
+
+    const store = createSupabaseRoomMembershipAdminStore(client);
+    await expect(
+      store.markMembershipLeft("room-1", "user-1"),
+    ).resolves.toBe("ejected");
+  });
+});
