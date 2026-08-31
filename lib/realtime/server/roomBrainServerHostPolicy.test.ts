@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { roomBrainMediaGrantUrl } from "./roomBrainServerHostPolicy";
+import {
+  roomBrainMediaGrantUrl,
+  roomBrainModerationActionUrl,
+} from "./roomBrainServerHostPolicy";
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -40,5 +43,30 @@ describe("roomBrainMediaGrantUrl", () => {
     expect(roomBrainMediaGrantUrl("ws://localhost:8787", "room-1")).toBe(
       "http://localhost:8787/rooms/room-1/media-grant",
     );
+  });
+});
+
+
+describe("roomBrainModerationActionUrl", () => {
+  it("uses the same production allowlist boundary as media grants", () => {
+    vi.stubEnv("NODE_ENV", "production");
+
+    expect(
+      roomBrainModerationActionUrl(
+        "wss://room-brain.example/socket",
+        "room/one",
+        ["room-brain.example"],
+      ),
+    ).toBe(
+      "https://room-brain.example/socket/rooms/room%2Fone/moderation-action",
+    );
+
+    expect(() =>
+      roomBrainModerationActionUrl(
+        "wss://evil.example/socket",
+        "room-1",
+        ["room-brain.example"],
+      ),
+    ).toThrow("allowlisted");
   });
 });
