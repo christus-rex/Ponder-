@@ -20,7 +20,7 @@
     "typecheck:domain": "tsc -p packages/domain/tsconfig.json --noEmit",
     "typecheck:mobile": "tsc -p apps/mobile/tsconfig.json --noEmit",
     "test": "npm run test:web && npm run test:translator && npm run test:domain",
-    "test:web": "vitest run lib/crypto/ledger.test.ts lib/auth/age.test.ts lib/auth/routeAccess.test.ts lib/translation/config.test.ts lib/realtime/roomBrainClient.test.ts lib/realtime/roomMediaSessionCoordinator.test.ts",
+    "test:web": "vitest run lib/crypto/ledger.test.ts lib/auth/age.test.ts lib/auth/routeAccess.test.ts lib/translation/config.test.ts lib/realtime/roomBrainClient.test.ts lib/realtime/roomMediaSessionCoordinator.test.ts lib/realtime/realtimeKitMediaProvider.test.ts",
     "test:translator": "node --test test/*.test.mjs",
     "test:domain": "node --experimental-strip-types --test packages/domain/test/*.test.ts",
     "audit:ci": "npm audit --audit-level=high",
@@ -32,6 +32,7 @@
   },
   "dependencies": {
     "@base-org/account": "2.5.5",
+    "@cloudflare/realtimekit": "2.0.2",
     "@supabase/ssr": "latest",
     "@supabase/supabase-js": "latest",
     "next": "16.3.3",
