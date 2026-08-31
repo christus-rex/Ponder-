@@ -26,14 +26,30 @@ test("provider participant revocation handles are isolated from browser roles", 
   );
 });
 
-test("provider session registry enforces one tracked participant per room user", () => {
+test("provider session registry serializes current-generation replacement without losing historical handles", () => {
   assert.match(
     migration,
-    /primary key \(room_id, user_id\)/i,
+    /create unique index room_media_provider_sessions_current_user_idx[\s\S]*on public\.room_media_provider_sessions\(room_id, user_id\)[\s\S]*where is_current and revoked_at is null/i,
   );
   assert.match(
     migration,
     /unique \(provider, provider_participant_id\)/i,
+  );
+  assert.match(
+    migration,
+    /create or replace function public\.register_room_media_provider_session/i,
+  );
+  assert.match(
+    migration,
+    /pg_advisory_xact_lock[\s\S]*hashtextextended/i,
+  );
+  assert.match(
+    migration,
+    /revoke execute on function public\.register_room_media_provider_session[\s\S]*from public, anon, authenticated/i,
+  );
+  assert.match(
+    migration,
+    /grant execute on function public\.register_room_media_provider_session[\s\S]*to service_role/i,
   );
 });
 
