@@ -34,6 +34,7 @@ export async function saveProfile(formData: FormData) {
   const bio = field(formData, "bio");
   const intent = field(formData, "intent");
   const maturePreference = field(formData, "mature_content_preference");
+  const showOnlineStatus = field(formData, "show_online_status") === "visible";
   const acceptedTermsThisSubmit = formData.get("terms_acceptance") === "on";
   const interests = field(formData, "interests")
     .split(",")
@@ -68,7 +69,10 @@ export async function saveProfile(formData: FormData) {
 
   const { error: preferencesError } = await supabase
     .from("user_preferences")
-    .update({ mature_content_preference: maturePreference })
+    .update({
+      mature_content_preference: maturePreference,
+      show_online_status: showOnlineStatus,
+    })
     .eq("id", userData.user.id);
 
   if (preferencesError) throw new Error(preferencesError.message);

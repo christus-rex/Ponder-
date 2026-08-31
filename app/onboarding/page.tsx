@@ -22,7 +22,7 @@ export default async function OnboardingPage() {
         .maybeSingle(),
       supabase
         .from("user_preferences")
-        .select("mature_content_preference")
+        .select("mature_content_preference,show_online_status")
         .eq("id", userData.user.id)
         .maybeSingle(),
     ]);
@@ -75,6 +75,20 @@ export default async function OnboardingPage() {
             defaultValue={profile?.interests?.join(", ") ?? ""}
             placeholder="music, philosophy, design"
           />
+        </label>
+
+        <label>
+          Online availability
+          <select
+            name="show_online_status"
+            defaultValue={preferences?.show_online_status ? "visible" : "hidden"}
+          >
+            <option value="visible">Show “available now” while I’m active</option>
+            <option value="hidden">Keep my online availability private</option>
+          </select>
+          <small className="walletNote">
+            Ponder+ exposes only a coarse “available now” signal, never your last-seen timestamp.
+          </small>
         </label>
 
         <label>

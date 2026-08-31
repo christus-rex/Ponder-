@@ -22,8 +22,22 @@ const roomLifecycle = readFileSync(
   'supabase/migrations/20260831053500_server_owned_room_lifecycle.sql',
   'utf8'
 );
+const presenceOutcomes = readFileSync(
+  'supabase/migrations/20260831054500_presence_and_resonance_outcomes.sql',
+  'utf8'
+);
 const sql =
-  foundation + '\n' + hardening + '\n' + onboarding + '\n' + telemetry + '\n' + roomLifecycle;
+  foundation +
+  '\n' +
+  hardening +
+  '\n' +
+  onboarding +
+  '\n' +
+  telemetry +
+  '\n' +
+  roomLifecycle +
+  '\n' +
+  presenceOutcomes;
 
 test('18+ eligibility is enforced during signup and in private account data', () => {
   assert.match(
@@ -128,7 +142,8 @@ test('all core user-facing tables enable row-level security', () => {
     'ledger_postings',
     'discovery_impression_batches',
     'discovery_impressions',
-    'discovery_outcomes'
+    'discovery_outcomes',
+    'user_presence'
   ]) {
     assert.match(
       sql,
@@ -239,5 +254,93 @@ test('discoverability helper remains a valid security-definer SQL function', () 
   assert.match(
     telemetry,
     /active profiles are discoverable[\s\S]*profile_is_discoverable\(id\)/i
+  );
+});
+
+
+test('online availability is opt-in and raw presence is not client-readable', () => {
+  assert.match(
+    presenceOutcomes,
+    /add column if not exists show_online_status boolean not null default false/i
+  );
+  assert.match(
+    presenceOutcomes,
+    /alter table public\.user_presence enable row level security/i
+  );
+  assert.match(
+    presenceOutcomes,
+    /revoke all on public\.user_presence from anon, authenticated/i
+  );
+  assert.match(
+    presenceOutcomes,
+    /returns table\(user_id uuid, available_now boolean\)/i
+  );
+});
+
+test('presence heartbeat derives identity and requires full app access', () => {
+  assert.match(
+    presenceOutcomes,
+    /create or replace function public\.heartbeat_presence\(\)[\s\S]*viewer uuid := auth\.uid\(\)/i
+  );
+  assert.match(
+    presenceOutcomes,
+    /heartbeat_presence\(\)[\s\S]*current_user_can_enter\(\)/i
+  );
+  assert.match(
+    presenceOutcomes,
+    /presence lookup must contain between 1 and 48 candidates/i
+  );
+});
+
+test('presence-enabled ranking uses an explicit telemetry algorithm version', () => {
+  assert.match(
+    presenceOutcomes,
+    /alter column algorithm_version set default 'resonance_v1_presence'/i
+  );
+  assert.match(
+    presenceOutcomes,
+    /algorithm_version in \('resonance_v1', 'resonance_v1_presence'\)/i
+  );
+});
+
+test('resonance outcomes verify durable connection and shared-room state', () => {
+  assert.match(
+    presenceOutcomes,
+    /connection_requested outcome requires a matching connection/i
+  );
+  assert.match(
+    presenceOutcomes,
+    /connection_accepted outcome requires an accepted connection/i
+  );
+  assert.match(
+    presenceOutcomes,
+    /room_entered outcome requires both users to be active room members/i
+  );
+  assert.match(
+    presenceOutcomes,
+    /reported outcome is unavailable until durable moderation reports ship/i
+  );
+  assert.match(
+    presenceOutcomes,
+    /repeat_interaction outcome is unavailable until durable interaction history ships/i
+  );
+});
+
+test('connection continuation is server-authoritative and telemetry follows the mutation', () => {
+  assert.match(
+    presenceOutcomes,
+    /create or replace function public\.request_connection_from_resonance/i
+  );
+  assert.match(
+    presenceOutcomes,
+    /if inbound_status = 'pending'::public\.connection_status[\s\S]*update public\.connections[\s\S]*record_resonance_outcome/i
+  );
+  assert.match(
+    presenceOutcomes,
+    /insert into public\.connections\(requester_id, addressee_id, status\)[\s\S]*record_resonance_outcome/i
+  );
+  assert.match(
+    presenceOutcomes,
+    /Connection is blocked/i
   );
 });

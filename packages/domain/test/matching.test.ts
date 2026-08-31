@@ -90,3 +90,42 @@ test('resonance exposes a coarse reason code without persisting explanation text
   );
   assert.equal(complementary.reasonCode, 'complementary_intent');
 });
+
+
+test('availability contributes a bounded four-point bonus', () => {
+  const offline = scoreResonance(
+    { id: 'viewer-presence', intent: 'talk', interests: ['music'] },
+    { id: 'candidate-offline', intent: 'meet', interests: ['music'], availableNow: false },
+  );
+  const online = scoreResonance(
+    { id: 'viewer-presence', intent: 'talk', interests: ['music'] },
+    { id: 'candidate-online', intent: 'meet', interests: ['music'], availableNow: true },
+  );
+
+  assert.equal(offline.availabilityBonus, 0);
+  assert.equal(online.availabilityBonus, 4);
+  assert.equal(online.score - offline.score, 4);
+});
+
+test('availability cannot overwhelm a materially stronger compatibility match', () => {
+  const ranked = rankResonance(
+    { id: 'viewer-bounded', intent: 'deep_conversation', interests: ['philosophy', 'history'] },
+    [
+      {
+        id: 'strong-offline',
+        intent: 'deep_conversation',
+        interests: ['philosophy', 'history'],
+        availableNow: false,
+      },
+      {
+        id: 'weak-online',
+        intent: 'hang_out',
+        interests: [],
+        availableNow: true,
+      },
+    ],
+  );
+
+  assert.equal(ranked[0]?.candidate.id, 'strong-offline');
+  assert.ok((ranked[0]?.resonance.score ?? 0) - (ranked[1]?.resonance.score ?? 0) > 4);
+});
