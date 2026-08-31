@@ -1,4 +1,4 @@
-name: Publish Ponder+ Preview
+name: Publish Ponder+ Static Preview (non-production)
 
 on:
   push:
@@ -46,7 +46,7 @@ jobs:
             {
               echo "## GitHub Pages is not enabled yet"
               echo
-              echo "The preview has been preserved as a workflow artifact."
+              echo "The non-production static preview has been preserved as a workflow artifact."
               echo
               echo "One-time repository action: **Settings → Pages → Build and deployment → Source → GitHub Actions**."
               echo

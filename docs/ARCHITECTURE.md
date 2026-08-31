@@ -1,81 +1,119 @@
-# Architecture
+# Ponder+ Architecture
 
-## Core strategy
+## Principle
 
-Start with a modular monolith and explicit provider adapters. Do not begin with microservices.
+Ponder+ is a modular TypeScript product with explicit authority boundaries. PostgreSQL owns durable state, Room Brain owns ephemeral live-room authority, and RealtimeKit is transport infrastructure rather than a source of product permission.
 
-This minimizes fixed cost and operational complexity while preserving boundaries that can be extracted later.
+Do not introduce a second room, economy, identity, or moderation model beside these boundaries.
 
-## Distribution
+## Product surfaces
 
-Primary product: responsive web app / PWA.
+### Primary web product
 
-Expo/React Native remains a later companion-client option. Early revenue must not depend on app-store approval.
+The authenticated Next.js application owns:
 
-## Logical architecture
+- auth and onboarding
+- discovery and resonance
+- people/profile continuation
+- room creation and entry
+- live-room controls
+- room-native translation controls
+- host moderation UX
+- server API routes
 
-### Client plane
+### Mobile companion
 
-Account/profile, discovery, messaging, live-room experience, wallet/purchases, creator dashboard, report/block UX.
+Expo/React Native shares domain rules where useful but is not a second backend or authority plane.
 
-### Application/control plane
+### Experiments
 
-One backend organized by domain modules for authentication, age/identity orchestration, authorization, rooms, presence, chat, billing, wallet ledger, creator earnings/payout accounting, moderation, notifications, and audit.
+`demo/`, `preview/`, standalone translation samples, and Base Sepolia spikes are non-canonical experiments. They must not be used as evidence of production authorization, settlement, moderation, or deployment behavior.
 
-### Data plane
+## Durable data plane — Supabase/PostgreSQL
 
-PostgreSQL is authoritative. Use object storage for media/assets. Add Redis-compatible cache only after measured need. Use a transactional outbox for async work instead of dual-writing the database and queues.
+PostgreSQL is authoritative for:
 
-### Media plane
+- profiles and private adult/account data
+- central access state and preferences
+- rooms and server-owned room membership
+- connection state
+- discovery impressions/outcomes
+- privacy-bounded presence
+- room → provider meeting mappings
+- tracked provider participant sessions and revocation reconciliation
+- moderation audit records
 
-Keep live video/audio behind a `MediaProvider` interface.
+Dormant `messages`, `wallet_links`, and ledger tables are retained as server-owned foundations but currently expose no browser access.
 
-Ponder+ owns room authorization, media-token issuance, room metadata, safety state, entitlements, and billing. The media provider owns WebRTC/SFU/HLS transport, TURN where needed, and media-network scaling.
+## Realtime authority plane — Room Brain
 
-Never couple entitlements or the financial ledger to one media vendor.
+Room Brain is a Cloudflare Durable Object state machine. It owns ephemeral live-room truth:
 
-### Trust/compliance plane
+- authoritative participant presence
+- roles: host / moderator / speaker / viewer
+- speaker queue
+- room lock
+- reaction buckets
+- monotonic authority sequence
+- retry/idempotency state
+- demotion and participant ejection
+- multi-connection presence
+- reconnect snapshots and resync
 
-Use adapters and auditable records for age assurance, creator KYC, consent/attestations, moderation signals, reports, sanctions, geo policy, and payment risk. Store normalized status/reference data rather than raw provider payloads whenever practical.
+Every browser command is sequence guarded. Backend-only moderation commands cannot enter through the normal client websocket codec.
 
-## Initial monorepo
+Room Brain does **not** own durable account state, database membership enforcement, provider credentials, settlement, or KYC.
 
+## Media plane — RealtimeKit
+
+The browser talks to a provider-neutral `RealtimeMediaProvider` boundary.
+
+Authorization chain:
+
+```text
+authenticated user
+  -> live database room/membership check
+  -> Room Brain sequence/role revalidation
+  -> short-lived signed media capability
+  -> trusted server provider exchange
+  -> backend-owned room → RealtimeKit meeting mapping
+  -> RealtimeKit participant token
+  -> browser SDK join
 ```
-apps/
-  web/
-  mobile/
-  admin/
-  api/
 
-packages/
-  ui/
-  domain/
-  db/
-  auth/
-  observability/
-  config/
-  provider-contracts/
+Security invariants:
 
-docs/
-  adr/
-```
+- viewers are subscribe-only
+- host/moderator/speaker publication follows current Room Brain authority
+- browser cannot submit role, preset, provider host, provider secret, or meeting ID
+- synchronization loss suspends publication
+- demotion/ejection revokes tracked provider participants
+- unresolved provider cleanup is durably scheduled for reconciliation
 
-Prefer one TypeScript ecosystem for MVP unless a measured requirement justifies another language.
+## AI sidecars
 
-## Authentication/authorization
+Translation and future AI helpers are non-authoritative. They may generate captions/audio or moderation signals, but they cannot grant room roles, mint provider privilege, change account enforcement, or move money.
 
-Server-side session authority. Verified-adult state is a server-side scoped entitlement, never a client-side flag. Staff/admin identities use stronger authentication. Sensitive authorization checks execute server-side.
+The authenticated `/rooms/lab` experience is the canonical translation integration. Standalone translation demos are examples only.
 
-## Realtime
+## Economy boundary
 
-Use WebSockets for presence, room state, chat, and moderation events. Do not use WebSockets as the authoritative record for money movement.
+There is no canonical `PONDER_DEMO` economy.
 
-## Financial model
+The retained PostgreSQL accounting foundation is server-only and uses append-only/double-entry concepts with durable idempotency. Base Sepolia / USDC code is an experiment until a reviewed settlement API, compliance model, and entitlement flow exist.
 
-Treat credits/tokens as accounting entries. Every mutation produces balanced ledger entries. Processor webhooks reconcile external money to internal ledger state.
+## Deployment ownership
 
-## Scalability triggers
+Ponder+ has separate runtime responsibilities:
 
-Extract a service only for measured independent scaling, fault isolation, security/compliance boundaries, a materially different runtime, independent deployment cadence, or clear team ownership.
+1. **Web/API Worker** — Next.js via OpenNext/Cloudflare Workers.
+2. **Room Brain Worker** — Cloudflare Durable Objects under `services/room-brain-worker`.
+3. **Supabase** — Auth + PostgreSQL schema/migrations.
+4. **Scheduled reconciliation** — invokes the private web API for bounded provider-session cleanup.
+5. **GitHub Pages preview** — static non-production product preview only.
 
-Likely later extraction candidates: live-media orchestration, realtime messaging/presence, media moderation/processing, and settlement/reconciliation.
+Production changes should be deployable and reversible per boundary. A successful web deployment does not imply Room Brain or Supabase schema deployment succeeded.
+
+## Service-extraction rule
+
+Stay modular-monolith-first. Extract another service only for measured scaling, fault isolation, security/compliance isolation, different runtime requirements, or explicit team ownership.
