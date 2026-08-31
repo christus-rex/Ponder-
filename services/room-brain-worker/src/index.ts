@@ -3,6 +3,7 @@ import {
   applyRoomBrainCommand,
   buildRoomBrainSnapshot,
   claimRoomBrainPresence,
+  createMediaSessionToken,
   encodeRoomBrainMessage,
   handleRoomBrainClientMessage,
   initialRoomBrainProtocolState,
@@ -19,6 +20,7 @@ import {
 interface Env {
   ROOM_BRAIN: DurableObjectNamespace;
   ROOM_BRAIN_AUTH_SECRET: string;
+  MEDIA_SESSION_AUTH_SECRET: string;
 }
 
 type ConnectionAttachment = RoomBrainConnectionIdentity & {
@@ -29,14 +31,47 @@ type ConnectionAttachment = RoomBrainConnectionIdentity & {
 
 const PROTOCOL_STORAGE_KEY = "room-brain-protocol";
 const PRESENCE_STORAGE_KEY = "room-brain-presence";
+const MEDIA_GRANT_TTL_SECONDS = 30;
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
+    const url = new URL(request.url);
+    const mediaGrantMatch = /^\/rooms\/([^/]+)\/media-grant$/.exec(url.pathname);
+
+    if (request.method === "POST" && mediaGrantMatch) {
+      const roomId = decodeURIComponent(mediaGrantMatch[1]!);
+      const token = extractBearerToken(request.headers.get("Authorization"));
+      if (!token) {
+        return new Response("Missing realtime authorization", { status: 401 });
+      }
+
+      let payload: RoomBrainTokenPayload;
+      try {
+        payload = await verifyRoomBrainToken(token, env.ROOM_BRAIN_AUTH_SECRET);
+      } catch {
+        return new Response("Invalid realtime authorization", { status: 401 });
+      }
+
+      if (payload.roomId !== roomId) {
+        return new Response("Room authorization mismatch", { status: 403 });
+      }
+
+      const id = env.ROOM_BRAIN.idFromName(roomId);
+      const stub = env.ROOM_BRAIN.get(id);
+      const headers = new Headers(request.headers);
+      headers.set("X-Ponder-Verified-Room", payload.roomId);
+      headers.set("X-Ponder-Verified-User", payload.userId);
+      headers.set("X-Ponder-Verified-Role", payload.role);
+      headers.set("X-Ponder-Connection-Id", payload.connectionId);
+      headers.set("X-Ponder-Token-Exp", String(payload.exp));
+
+      return stub.fetch(new Request(request, { headers }));
+    }
+
     if (request.headers.get("Upgrade")?.toLowerCase() !== "websocket") {
       return new Response("Expected WebSocket upgrade", { status: 426 });
     }
 
-    const url = new URL(request.url);
     const match = /^\/rooms\/([^/]+)$/.exec(url.pathname);
     if (!match) return new Response("Not found", { status: 404 });
 
@@ -75,6 +110,10 @@ export default {
 
 export class RoomBrainDurableObject extends DurableObject<Env> {
   async fetch(request: Request): Promise<Response> {
+    if (request.method === "POST" && new URL(request.url).pathname.endsWith("/media-grant")) {
+      return this.issueMediaGrant(request);
+    }
+
     if (request.headers.get("Upgrade")?.toLowerCase() !== "websocket") {
       return new Response("Expected WebSocket upgrade", { status: 426 });
     }
@@ -205,6 +244,70 @@ export class RoomBrainDurableObject extends DurableObject<Env> {
     await this.removeConnection(webSocket);
   }
 
+  private async issueMediaGrant(request: Request): Promise<Response> {
+    const attachment = readVerifiedAttachment(request.headers);
+    if (!attachment) {
+      return new Response("Verified connection identity required", { status: 401 });
+    }
+
+    if (!this.env.MEDIA_SESSION_AUTH_SECRET || this.env.MEDIA_SESSION_AUTH_SECRET.length < 32) {
+      return new Response("Media authorization is not configured", { status: 503 });
+    }
+
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return new Response("Invalid media authorization request", { status: 400 });
+    }
+
+    if (typeof body !== "object" || body === null || Array.isArray(body)) {
+      return new Response("Invalid media authorization request", { status: 400 });
+    }
+
+    const authoritySequence = (body as Record<string, unknown>).authoritySequence;
+    if (!Number.isSafeInteger(authoritySequence) || (authoritySequence as number) < 0) {
+      return new Response("Invalid media authority sequence", { status: 400 });
+    }
+
+    const protocol = await this.loadProtocol();
+    if (protocol.room.sequence !== authoritySequence) {
+      return new Response("Room Brain sequence changed; resync required", { status: 409 });
+    }
+
+    const participant = protocol.room.participants[attachment.userId];
+    if (!participant) {
+      return new Response("User is not present in the authoritative room", { status: 403 });
+    }
+
+    const now = Math.floor(Date.now() / 1000);
+    const exp = now + MEDIA_GRANT_TTL_SECONDS;
+    const token = await createMediaSessionToken(
+      {
+        v: 1,
+        kind: "ponder-media-session",
+        roomId: attachment.roomId,
+        userId: attachment.userId,
+        role: participant.role,
+        authoritySequence: authoritySequence as number,
+        exp,
+      },
+      this.env.MEDIA_SESSION_AUTH_SECRET
+    );
+
+    return Response.json(
+      {
+        roomId: attachment.roomId,
+        userId: attachment.userId,
+        role: participant.role,
+        authoritySequence,
+        token,
+        expiresAt: exp * 1000,
+      },
+      { headers: { "Cache-Control": "no-store" } }
+    );
+  }
+
   private async loadProtocol(): Promise<RoomBrainProtocolState> {
     return (
       (await this.ctx.storage.get<RoomBrainProtocolState>(
@@ -281,6 +384,12 @@ function extractAuthorizationToken(protocolHeader: string | null): string | null
 
   const auth = protocols.find((value) => value.startsWith("ponder-auth."));
   return auth ? auth.slice("ponder-auth.".length) : null;
+}
+
+function extractBearerToken(header: string | null): string | null {
+  if (!header) return null;
+  const match = /^Bearer\s+(.+)$/i.exec(header.trim());
+  return match?.[1]?.trim() || null;
 }
 
 function readVerifiedAttachment(headers: Headers): ConnectionAttachment | null {
