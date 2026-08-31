@@ -179,6 +179,27 @@ async function revokeTrackedSessionsBestEffort(
   const failures: unknown[] = [];
 
   for (const session of sessions) {
+    let reconciliationError: unknown;
+
+    // Persist the cleanup intent before the external provider mutation. If the
+    // process dies after this write, the reconciliation worker can still revoke
+    // the provider participant. A scheduling failure does not suppress an
+    // immediate best-effort revoke, but it is surfaced if cleanup also fails.
+    try {
+      if (!store.requestReconciliation) {
+        throw new Error("Media revocation reconciliation store is not configured");
+      }
+      await retryBounded(() =>
+        store.requestReconciliation!(
+          session.roomId,
+          session.userId,
+          session.providerParticipantId,
+        ),
+      );
+    } catch (error) {
+      reconciliationError = error;
+    }
+
     try {
       await retryBounded(() =>
         revoker.revokeParticipant(
@@ -195,22 +216,16 @@ async function revokeTrackedSessionsBestEffort(
       );
       revoked += 1;
     } catch (error) {
-      try {
-        await store.requestReconciliation?.(
-          session.roomId,
-          session.userId,
-          session.providerParticipantId,
-        );
-      } catch (reconciliationError) {
+      if (reconciliationError) {
         failures.push(
           new AggregateError(
             [error, reconciliationError],
             "Provider media revocation failed and durable reconciliation could not be scheduled",
           ),
         );
-        continue;
+      } else {
+        failures.push(error);
       }
-      failures.push(error);
     }
   }
 
@@ -367,7 +382,7 @@ export function createSupabaseRoomMediaProviderSessionStore(
 
     async requestReconciliation(roomId, userId, providerParticipantId) {
       const now = new Date().toISOString();
-      const { error } = await adminClient
+      const { data, error } = await adminClient
         .from("room_media_provider_sessions")
         .update({
           reconciliation_requested_at: now,
@@ -377,10 +392,15 @@ export function createSupabaseRoomMediaProviderSessionStore(
         .eq("room_id", roomId)
         .eq("user_id", userId)
         .eq("provider_participant_id", providerParticipantId)
-        .is("revoked_at", null);
+        .is("revoked_at", null)
+        .select("id")
+        .maybeSingle();
 
       if (error) {
         throw new Error("Unable to schedule provider media reconciliation");
+      }
+      if (!data?.id) {
+        throw new Error("Provider media reconciliation target was not found");
       }
     },
 
