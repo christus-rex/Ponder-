@@ -6,6 +6,10 @@ const workflow = readFileSync(
   ".github/workflows/deploy-supabase-migrations.yml",
   "utf8",
 );
+const webDeployWorkflow = readFileSync(
+  ".github/workflows/deploy-cloudflare.yml",
+  "utf8",
+);
 const config = readFileSync("supabase/config.toml", "utf8");
 
 test("Supabase production migration workflow plans before any apply", () => {
@@ -25,6 +29,26 @@ test("Supabase migration deployment cannot silently rewrite history or reset pro
   assert.match(workflow, /SUPABASE_ACCESS_TOKEN/);
   assert.match(workflow, /SUPABASE_DB_PASSWORD/);
   assert.match(workflow, /wjqcjlcmgeujndxvtprj/);
+});
+
+test("web deployment cannot outrun production Supabase migrations", () => {
+  const schemaGate = webDeployWorkflow.indexOf(
+    "Require current production migration history",
+  );
+  const deploy = webDeployWorkflow.indexOf(
+    "Deploy authenticated Ponder+ Worker",
+  );
+
+  assert.ok(schemaGate >= 0);
+  assert.ok(deploy > schemaGate);
+  assert.match(webDeployWorkflow, /supabase\/setup-cli@v1/);
+  assert.match(webDeployWorkflow, /supabase migration list/);
+  assert.match(
+    webDeployWorkflow,
+    /node scripts\/verify-supabase-migrations-current\.mjs/,
+  );
+  assert.match(webDeployWorkflow, /SUPABASE_ACCESS_TOKEN/);
+  assert.match(webDeployWorkflow, /SUPABASE_DB_PASSWORD/);
 });
 
 test("Supabase CLI project configuration is committed without secrets", () => {
