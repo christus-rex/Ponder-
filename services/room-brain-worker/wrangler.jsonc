@@ -13,7 +13,16 @@
   "migrations": [
     {
       "tag": "v1",
-      "new_sqlite_classes": ["RoomBrainDurableObject"]
+      "new_sqlite_classes": [
+        "RoomBrainDurableObject"
+      ]
     }
-  ]
+  ],
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "secrets": {
+    "required": [
+      "ROOM_BRAIN_AUTH_SECRET",
+      "MEDIA_SESSION_AUTH_SECRET"
+    ]
+  }
 }
