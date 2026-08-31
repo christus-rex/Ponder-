@@ -7,7 +7,7 @@ const presenceScope = readFileSync(
   'utf8'
 );
 const serverOwnership = readFileSync(
-  'supabase/migrations/20260831131500_server_owned_discovery_presence.sql',
+  'supabase/migrations/20260831131030_server_owned_discovery_presence.sql',
   'utf8'
 );
 const discoverPage = readFileSync('app/discover/page.tsx', 'utf8');
