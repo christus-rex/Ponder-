@@ -87,7 +87,6 @@ as $$
 declare
   viewer uuid := auth.uid();
   batch_id uuid;
-  existing_batch uuid;
   candidate_count integer := cardinality(p_candidate_ids);
 begin
   if viewer is null then
@@ -153,20 +152,6 @@ begin
     raise exception 'All discovery candidates must be active, onboarded profiles';
   end if;
 
-  select dib.id
-  into existing_batch
-  from public.discovery_impression_batches dib
-  where dib.viewer_id = viewer
-    and dib.algorithm_version = 'resonance_v1'
-    and dib.surface = 'discover_people'
-    and dib.created_at > now() - interval '5 seconds'
-  order by dib.created_at desc
-  limit 1;
-
-  if existing_batch is not null then
-    return existing_batch;
-  end if;
-
   insert into public.discovery_impression_batches(viewer_id)
   values (viewer)
   returning id into batch_id;
@@ -193,7 +178,8 @@ end;
 $$;
 
 create or replace function public.record_resonance_outcome(
-  p_impression_id bigint,
+  p_batch_id uuid,
+  p_candidate_id uuid,
   p_outcome_kind text,
   p_room_id uuid default null
 )
@@ -205,6 +191,7 @@ as $$
 declare
   viewer uuid := auth.uid();
   stored_viewer uuid;
+  p_impression_id bigint;
   parsed_kind public.resonance_outcome_kind;
 begin
   if viewer is null then
@@ -218,10 +205,11 @@ begin
       raise exception 'Unknown resonance outcome kind';
   end;
 
-  select di.viewer_id
-  into stored_viewer
+  select di.viewer_id, di.id
+  into stored_viewer, p_impression_id
   from public.discovery_impressions di
-  where di.id = p_impression_id;
+  where di.batch_id = p_batch_id
+    and di.candidate_id = p_candidate_id;
 
   if stored_viewer is null or stored_viewer <> viewer then
     raise exception 'Impression is not owned by the authenticated viewer';
@@ -251,12 +239,12 @@ $$;
 
 revoke execute on function public.record_resonance_impression_batch(uuid[], smallint[], text[])
   from public, anon;
-revoke execute on function public.record_resonance_outcome(bigint, text, uuid)
+revoke execute on function public.record_resonance_outcome(uuid, uuid, text, uuid)
   from public, anon;
 
 grant execute on function public.record_resonance_impression_batch(uuid[], smallint[], text[])
   to authenticated;
-grant execute on function public.record_resonance_outcome(bigint, text, uuid)
+grant execute on function public.record_resonance_outcome(uuid, uuid, text, uuid)
   to authenticated;
 
 commit;
