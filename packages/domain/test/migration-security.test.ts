@@ -18,7 +18,12 @@ const telemetry = readFileSync(
   'supabase/migrations/20260831011500_resonance_telemetry.sql',
   'utf8'
 );
-const sql = foundation + '\n' + hardening + '\n' + onboarding + '\n' + telemetry;
+const roomLifecycle = readFileSync(
+  'supabase/migrations/20260831053500_server_owned_room_lifecycle.sql',
+  'utf8'
+);
+const sql =
+  foundation + '\n' + hardening + '\n' + onboarding + '\n' + telemetry + '\n' + roomLifecycle;
 
 test('18+ eligibility is enforced during signup and in private account data', () => {
   assert.match(
@@ -72,10 +77,22 @@ test('signup security-definer function is not exposed as client RPC', () => {
   }
 });
 
-test('room creation is constrained to the authenticated creator', () => {
+test('direct client room lifecycle mutations are revoked in favor of backend orchestration', () => {
   assert.match(
-    foundation,
-    /users create own rooms[\s\S]*created_by = \(select auth\.uid\(\)\)/i
+    roomLifecycle,
+    /revoke insert, update on table public\.rooms from authenticated/i
+  );
+  assert.match(
+    roomLifecycle,
+    /drop policy if exists "users create own rooms" on public\.rooms/i
+  );
+  assert.match(
+    roomLifecycle,
+    /drop policy if exists "room creators update rooms" on public\.rooms/i
+  );
+  assert.doesNotMatch(
+    roomLifecycle,
+    /grant[^;]*(insert|update)[^;]*public\.rooms[^;]*authenticated/i
   );
 });
 
