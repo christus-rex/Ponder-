@@ -30,9 +30,10 @@ export type RoomMediaProvisioningResult = {
  * Converges a Ponder room onto exactly one backend-owned RealtimeKit meeting.
  *
  * The provider meeting is created before the database mapping because the
- * provider supplies the meeting ID. If another request wins the mapping race,
- * the losing meeting is immediately disabled. A compensation failure is
- * surfaced instead of silently leaving an active orphan meeting.
+ * provider supplies the meeting ID. If another request wins a confirmed
+ * same-room mapping race, the losing meeting is disabled. Ambiguous uniqueness
+ * conflicts are surfaced without mutating provider state for another room.
+ * Compensation failures are never hidden.
  */
 export async function ensureRealtimeKitMeetingProvisioned(
   store: RoomMediaProvisioningStore,
@@ -49,7 +50,17 @@ export async function ensureRealtimeKitMeetingProvisioned(
   }
 
   const created = await controlPlane.createMeeting({ roomId, title });
-  const createdMeetingId = normalizeMeetingId(created.meetingId);
+  let createdMeetingId: string;
+  try {
+    createdMeetingId = normalizeMeetingId(created.meetingId);
+  } catch (error) {
+    const cleanupCandidate =
+      typeof created.meetingId === "string" ? created.meetingId.trim() : "";
+    if (cleanupCandidate) {
+      await compensateCreatedMeeting(controlPlane, cleanupCandidate);
+    }
+    throw error;
+  }
 
   let mappingResult: "created" | "conflict";
   try {
