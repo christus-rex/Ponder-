@@ -14,7 +14,12 @@ export default async function DiscoverPage() {
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) redirect("/auth");
 
-  const [{ data: viewer }, { data: people }, { data: rooms }] = await Promise.all([
+  const [
+    { data: viewer },
+    { data: people },
+    { data: rooms },
+    { data: ejectedMemberships },
+  ] = await Promise.all([
     supabase
       .from("profiles")
       .select("id,current_intent,interests")
@@ -31,6 +36,11 @@ export default async function DiscoverPage() {
       .select("id,title,description,current_intent,max_participants,status")
       .eq("status", "open")
       .limit(24),
+    supabase
+      .from("room_members")
+      .select("room_id")
+      .eq("user_id", userData.user.id)
+      .eq("entry_state", "ejected"),
   ]);
 
   const viewerProfile = viewer
@@ -81,7 +91,12 @@ export default async function DiscoverPage() {
     resonanceBatchId = typeof batchId === "string" ? batchId : null;
   }
 
+  const ejectedRoomIds = new Set(
+    (ejectedMemberships ?? []).map((membership) => membership.room_id),
+  );
+
   const rankedRooms = (rooms ?? [])
+    .filter((room) => !ejectedRoomIds.has(room.id))
     .map((room) => ({
       room,
       intentFit: viewerProfile
