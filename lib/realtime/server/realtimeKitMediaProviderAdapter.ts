@@ -5,6 +5,7 @@ import type {
 } from "./mediaProviderExchange";
 
 const DEFAULT_REALTIMEKIT_API_BASE = "https://api.dyte.io/v2";
+const DEFAULT_ALLOWED_REALTIMEKIT_API_HOSTS = ["api.dyte.io"] as const;
 
 export interface RealtimeKitMediaProviderAdapterConfig {
   organizationId: string;
@@ -13,6 +14,7 @@ export interface RealtimeKitMediaProviderAdapterConfig {
   publisherPreset: string;
   resolveMeetingId(roomId: string): Promise<string>;
   apiBase?: string;
+  allowedApiHosts?: readonly string[];
   fetchImpl?: typeof fetch;
 }
 
@@ -30,6 +32,7 @@ type RealtimeKitParticipantResponse = {
  * Provider permission is represented by server-controlled presets. The adapter
  * never accepts a preset name from the browser and refuses mixed publish
  * permissions because they cannot be represented by the two-preset contract.
+ * Provider credentials may only be sent to explicitly trusted HTTPS hosts.
  */
 export class RealtimeKitMediaProviderAdapter
   implements TrustedMediaProviderAdapter
@@ -38,7 +41,10 @@ export class RealtimeKitMediaProviderAdapter
   private readonly fetchImpl: typeof fetch;
 
   constructor(private readonly config: RealtimeKitMediaProviderAdapterConfig) {
-    this.apiBase = normalizeApiBase(config.apiBase ?? DEFAULT_REALTIMEKIT_API_BASE);
+    this.apiBase = normalizeApiBase(
+      config.apiBase ?? DEFAULT_REALTIMEKIT_API_BASE,
+      config.allowedApiHosts ?? DEFAULT_ALLOWED_REALTIMEKIT_API_HOSTS,
+    );
     this.fetchImpl = config.fetchImpl ?? fetch;
     validateConfig(config);
   }
@@ -174,12 +180,29 @@ function encodeBasicAuth(organizationId: string, apiKey: string): string {
   return Buffer.from(`${organizationId}:${apiKey}`, "utf8").toString("base64");
 }
 
-function normalizeApiBase(value: string): string {
+function normalizeApiBase(value: string, allowedHosts: readonly string[]): string {
   const trimmed = value.trim().replace(/\/+$/, "");
-  if (!/^https:\/\//i.test(trimmed)) {
+  let url: URL;
+  try {
+    url = new URL(trimmed);
+  } catch {
+    throw new Error("RealtimeKit API base is invalid");
+  }
+  if (url.protocol !== "https:") {
     throw new Error("RealtimeKit API base must use HTTPS");
   }
-  return trimmed;
+
+  const trustedHosts = new Set(
+    allowedHosts.map((host) => host.trim().toLowerCase()).filter(Boolean),
+  );
+  if (trustedHosts.size === 0 || !trustedHosts.has(url.hostname.toLowerCase())) {
+    throw new Error("RealtimeKit API host is not trusted");
+  }
+  if (url.username || url.password) {
+    throw new Error("RealtimeKit API base must not contain credentials");
+  }
+
+  return url.toString().replace(/\/$/, "");
 }
 
 function validateConfig(config: RealtimeKitMediaProviderAdapterConfig): void {
