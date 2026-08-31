@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/auth/actions";
+import { PresenceHeartbeat } from "@/components/PresenceHeartbeat";
 import {
   rankResonance,
   scoreIntentAffinity,
@@ -39,13 +40,29 @@ export default async function DiscoverPage() {
       }
     : null;
 
+  const peoplePool = people ?? [];
+  const presenceByUser = new Map<string, boolean>();
+
+  if (peoplePool.length > 0) {
+    const { data: presenceRows } = await supabase.rpc("presence_for_candidates", {
+      p_candidate_ids: peoplePool.map((person) => person.id),
+    });
+
+    for (const row of presenceRows ?? []) {
+      if (typeof row?.user_id === "string") {
+        presenceByUser.set(row.user_id, row.available_now === true);
+      }
+    }
+  }
+
   const rankedPeople = viewerProfile
     ? rankResonance(
         viewerProfile,
-        (people ?? []).map((person) => ({
+        peoplePool.map((person) => ({
           ...person,
           intent: person.current_intent as SocialIntent,
           interests: person.interests ?? [],
+          availableNow: presenceByUser.get(person.id) ?? false,
         })),
       ).slice(0, 12)
     : [];
@@ -80,6 +97,7 @@ export default async function DiscoverPage() {
 
   return (
     <main className="shell">
+      <PresenceHeartbeat />
       <nav className="nav">
         <div className="brand">
           <span className="brandMark">P+</span>
@@ -111,7 +129,7 @@ export default async function DiscoverPage() {
         <p className="sectionLabel">RESONANCE</p>
         <h2>Find conversation before popularity.</h2>
         <p className="walletNote" style={{ marginTop: 10 }}>
-          Ranked by conversational intent and shared interests — never by gifting or spend.
+          Ranked by conversational intent and shared interests. Live availability can add at most four points — never gifting or spend.
         </p>
         <div className="roomGrid" style={{ marginTop: 28 }}>
           {rankedPeople.map(({ candidate: person, resonance }) => (
@@ -123,12 +141,20 @@ export default async function DiscoverPage() {
             >
               <span className="roomMeta">
                 {person.current_intent?.replaceAll("_", " ")} · {resonance.score} resonance
+                {person.availableNow ? " · available now" : ""}
               </span>
               <h3>{person.display_name}</h3>
               <p>@{person.handle}</p>
               <p>{person.bio}</p>
               <p className="walletNote">{person.interests?.join(" · ")}</p>
               <p className="walletNote">{resonance.reasons.join(" · ")}</p>
+              <a
+                className="secondaryButton"
+                href={`/people/${person.id}${resonanceBatchId ? `?batch=${encodeURIComponent(resonanceBatchId)}` : ""}`}
+                style={{ marginTop: 16, display: "inline-flex" }}
+              >
+                View profile
+              </a>
             </article>
           ))}
         </div>
