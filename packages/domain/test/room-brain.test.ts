@@ -54,3 +54,42 @@ test('room event sequence increases monotonically', () => {
   state = applyRoomBrainCommand(state, { type: 'set_room_lock', actorUserId: 'host', locked: true });
   assert.equal(state.sequence, start + 2);
 });
+
+
+test('host can demote an authoritative speaker back to viewer', () => {
+  let state = withPeople();
+  state = applyRoomBrainCommand(state, {
+    type: 'grant_seat',
+    actorUserId: 'host',
+    targetUserId: 'viewer'
+  });
+  state = applyRoomBrainCommand(state, {
+    type: 'demote_speaker',
+    actorUserId: 'host',
+    targetUserId: 'viewer'
+  });
+  assert.equal(state.participants.viewer?.role, 'viewer');
+});
+
+test('speaker demotion requires moderator authority and a current speaker target', () => {
+  let state = withPeople();
+  assert.throws(
+    () =>
+      applyRoomBrainCommand(state, {
+        type: 'demote_speaker',
+        actorUserId: 'viewer',
+        targetUserId: 'host'
+      }),
+    /Moderator privilege/
+  );
+
+  assert.throws(
+    () =>
+      applyRoomBrainCommand(state, {
+        type: 'demote_speaker',
+        actorUserId: 'host',
+        targetUserId: 'viewer'
+      }),
+    /Only speakers can be demoted/
+  );
+});
