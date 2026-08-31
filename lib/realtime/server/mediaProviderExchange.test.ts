@@ -39,6 +39,7 @@ function adapter(
       capture.push(context);
       return {
         provider: "test-sfu",
+        providerParticipantId: "participant-test",
         participantToken: "provider-credential",
         expiresAt,
       };
@@ -63,6 +64,9 @@ describe("exchangeTrustedMediaCapability", () => {
     );
 
     expect(result.provider).toBe("test-sfu");
+    expect(result.providerParticipantId).toBe("participant-test");
+    expect(result.verifiedRole).toBe("viewer");
+    expect(result.authoritySequence).toBe(42);
     expect(seen).toHaveLength(1);
     expect(seen[0]?.role).toBe("viewer");
     expect(seen[0]?.permissions).toEqual({
