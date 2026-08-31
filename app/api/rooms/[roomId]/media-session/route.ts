@@ -1,7 +1,14 @@
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { exchangeTrustedMediaCapability } from "@/lib/realtime/server/mediaProviderExchange";
+import {
+  exchangeTrustedMediaCapability,
+  verifyTrustedMediaCapability,
+} from "@/lib/realtime/server/mediaProviderExchange";
+import {
+  requestAuthoritativeMediaGrant,
+  RoomBrainServerRequestError,
+} from "@/lib/realtime/server/roomBrainServerClient";
 import { RealtimeKitMediaProviderAdapter } from "@/lib/realtime/server/realtimeKitMediaProviderAdapter";
 import { resolveRealtimeKitMeetingId } from "@/lib/realtime/server/roomMediaProviderMapping";
 import {
@@ -54,7 +61,7 @@ export async function POST(
 
   const { data: room, error: roomError } = await supabase
     .from("rooms")
-    .select("id,status")
+    .select("id,status,created_by")
     .eq("id", roomId)
     .maybeSingle();
   if (roomError) {
@@ -72,6 +79,68 @@ export async function POST(
     return NextResponse.json(
       { error: "Room media provider exchange is not configured." },
       { status: 503 },
+    );
+  }
+
+  let verifiedCapability;
+  try {
+    verifiedCapability = await verifyTrustedMediaCapability(
+      {
+        capabilityToken: freshAuthorization.token,
+        expectedRoomId: roomId,
+        expectedUserId: userData.user.id,
+        expectedAuthoritySequence: input.authoritySequence,
+      },
+      config.mediaSessionSecret,
+    );
+  } catch {
+    return NextResponse.json(
+      { error: "Unable to establish an authorized media session." },
+      { status: 403 },
+    );
+  }
+
+  let freshAuthorization;
+  try {
+    freshAuthorization = await requestAuthoritativeMediaGrant(
+      {
+        websocketUrl: config.roomBrainWebsocketUrl,
+        roomBrainSecret: config.roomBrainSecret,
+        allowedHosts: config.roomBrainAllowedHosts,
+      },
+      {
+        roomId,
+        userId: userData.user.id,
+        baselineRole:
+          room.created_by === userData.user.id ? "host" : "viewer",
+        authoritySequence: input.authoritySequence,
+      },
+    );
+  } catch (error) {
+    if (error instanceof RoomBrainServerRequestError) {
+      if (error.status === 409) {
+        return NextResponse.json(
+          { error: "Room state changed. Resync before establishing media." },
+          { status: 409 },
+        );
+      }
+      if (error.status === 401 || error.status === 403) {
+        return NextResponse.json(
+          { error: "Room Brain no longer authorizes this media session." },
+          { status: 403 },
+        );
+      }
+    }
+    return NextResponse.json(
+      { error: "Room Brain media authority is unavailable." },
+      { status: 503 },
+    );
+  }
+
+  if (freshAuthorization.role !== verifiedCapability.role) {
+    return NextResponse.json(
+      { error: "Room media authority changed. Resync before establishing media." },
+      { status: 409 },
     );
   }
 
@@ -187,6 +256,8 @@ function readServerConfig() {
   const apiToken = process.env.CLOUDFLARE_REALTIME_API_TOKEN;
   const subscribeOnlyPreset = process.env.REALTIMEKIT_SUBSCRIBE_ONLY_PRESET;
   const publisherPreset = process.env.REALTIMEKIT_PUBLISHER_PRESET;
+  const roomBrainSecret = process.env.ROOM_BRAIN_AUTH_SECRET;
+  const roomBrainWebsocketUrl = process.env.NEXT_PUBLIC_ROOM_BRAIN_WS_URL;
 
   if (
     !supabaseUrl ||
@@ -197,7 +268,10 @@ function readServerConfig() {
     !appId ||
     !apiToken ||
     !subscribeOnlyPreset ||
-    !publisherPreset
+    !publisherPreset ||
+    !roomBrainSecret ||
+    roomBrainSecret.length < 32 ||
+    !roomBrainWebsocketUrl
   ) {
     return null;
   }
@@ -211,6 +285,12 @@ function readServerConfig() {
     apiToken,
     subscribeOnlyPreset,
     publisherPreset,
+    roomBrainSecret,
+    roomBrainWebsocketUrl,
+    roomBrainAllowedHosts: (process.env.ROOM_BRAIN_ALLOWED_HOSTS ?? "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean),
     apiBase: process.env.REALTIMEKIT_API_BASE?.trim() || undefined,
     allowedApiHosts: (process.env.REALTIMEKIT_ALLOWED_API_HOSTS ?? "")
       .split(",")
