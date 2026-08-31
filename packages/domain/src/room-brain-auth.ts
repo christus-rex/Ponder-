@@ -32,6 +32,8 @@ export function assertRoomBrainCommandAuthorized(
       return;
     case 'demote_speaker':
       throw new Error('Speaker demotion requires trusted backend moderation');
+    case 'eject_participant':
+      throw new Error('Participant ejection requires trusted backend moderation');
     case 'grant_seat':
     case 'set_room_lock':
       assertSameUser(identity, command.actorUserId);
