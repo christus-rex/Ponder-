@@ -22,6 +22,7 @@ export type RoomBrainCommand =
   | { type: 'cancel_seat'; userId: UserId }
   | { type: 'grant_seat'; actorUserId: UserId; targetUserId: UserId }
   | { type: 'demote_speaker'; actorUserId: UserId; targetUserId: UserId }
+  | { type: 'eject_participant'; actorUserId: UserId; targetUserId: UserId }
   | { type: 'set_room_lock'; actorUserId: UserId; locked: boolean }
   | { type: 'react'; userId: UserId; reaction: string };
 
@@ -77,6 +78,21 @@ export function applyRoomBrainCommand(state: RoomBrainState, command: RoomBrainC
       }
       target.role = 'viewer';
       next.speakerQueue = next.speakerQueue.filter((id) => id !== command.targetUserId);
+      break;
+    }
+    case 'eject_participant': {
+      requireModerator(next, command.actorUserId);
+      if (command.actorUserId === command.targetUserId) {
+        throw new Error('Moderator cannot eject self');
+      }
+      const target = requireParticipant(next, command.targetUserId);
+      if (target.role === 'host') {
+        throw new Error('Room host cannot be ejected');
+      }
+      delete next.participants[command.targetUserId];
+      next.speakerQueue = next.speakerQueue.filter(
+        (id) => id !== command.targetUserId
+      );
       break;
     }
     case 'set_room_lock': {
