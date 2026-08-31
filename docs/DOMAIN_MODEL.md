@@ -96,4 +96,4 @@ They are not active product capabilities until a dedicated reviewed API reintrod
 
 ## Economy
 
-The only canonical direction is server-owned append-only/double-entry accounting. There is no `PONDER_DEMO` currency, gift catalog, gift event model, or client balance authority in the shared domain package.
+The only canonical direction is server-owned append-only/double-entry accounting. There is no demo currency, gift catalog, gift event model, or client balance authority in the shared domain package.
