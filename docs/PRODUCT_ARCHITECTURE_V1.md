@@ -272,7 +272,8 @@ preview -> join -> active -> leave
 - [x] discovery surface
 - [x] deterministic resonance scorer
 - [x] rank discovery candidates with scorer
-- [x] log privacy-safe discovery outcomes
+- [x] log privacy-safe discovery impressions
+- [ ] wire privacy-safe discovery outcomes to verified product transitions
 - [ ] add presence/availability signal
 
 ### Phase B — relationship continuity
