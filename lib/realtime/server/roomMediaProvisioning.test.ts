@@ -153,24 +153,21 @@ describe("ensureRealtimeKitMeetingProvisioned", () => {
     ).rejects.toThrow("manual cleanup required");
   });
 
-  it("fails closed when a mapping race reports no winner", async () => {
+  it("does not mutate provider state when a uniqueness conflict has no same-room winner", async () => {
     const state = fakeStore();
     state.setCreateResult("conflict");
     const { controlPlane, calls } = fakeControlPlane({
-      createdMeetingId: "meeting-race-loser",
+      createdMeetingId: "meeting-ambiguous",
     });
 
     await expect(
       ensureRealtimeKitMeetingProvisioned(state.store, controlPlane, {
         roomId: "room-6",
-        title: "Missing winner",
+        title: "Ambiguous conflict",
       }),
-    ).rejects.toThrow("did not produce a winner");
+    ).rejects.toThrow("manual reconciliation");
 
-    expect(calls).toEqual([
-      "create:room-6:Missing winner",
-      "status:meeting-race-loser:INACTIVE",
-    ]);
+    expect(calls).toEqual(["create:room-6:Ambiguous conflict"]);
   });
 
   it("rejects invalid room metadata before touching the provider", async () => {
