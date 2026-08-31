@@ -50,6 +50,19 @@ export default async function DiscoverPage() {
       ).slice(0, 12)
     : [];
 
+  let resonanceBatchId: string | null = null;
+  if (rankedPeople.length > 0) {
+    const { data: batchId } = await supabase.rpc("record_resonance_impression_batch", {
+      p_candidate_ids: rankedPeople.map(({ candidate }) => candidate.id),
+      p_scores: rankedPeople.map(({ resonance }) => resonance.score),
+      p_reason_codes: rankedPeople.map(
+        ({ resonance }) => resonance.reasonCode ?? "compatible_intent",
+      ),
+    });
+
+    resonanceBatchId = typeof batchId === "string" ? batchId : null;
+  }
+
   const rankedRooms = (rooms ?? [])
     .map((room) => ({
       room,
@@ -102,7 +115,12 @@ export default async function DiscoverPage() {
         </p>
         <div className="roomGrid" style={{ marginTop: 28 }}>
           {rankedPeople.map(({ candidate: person, resonance }) => (
-            <article className="roomCard" key={person.id}>
+            <article
+              className="roomCard"
+              data-resonance-batch={resonanceBatchId ?? undefined}
+              data-resonance-candidate={person.id}
+              key={person.id}
+            >
               <span className="roomMeta">
                 {person.current_intent?.replaceAll("_", " ")} · {resonance.score} resonance
               </span>

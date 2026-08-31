@@ -69,3 +69,24 @@ test('ranking is deterministic when scores tie', () => {
 
   assert.deepEqual(ranked.map((entry) => entry.candidate.id), ['a', 'b']);
 });
+
+
+test('resonance exposes a coarse reason code without persisting explanation text', () => {
+  const sameIntent = scoreResonance(
+    { id: 'viewer-a', intent: 'talk', interests: ['music'] },
+    { id: 'candidate-a', intent: 'talk', interests: ['music'] },
+  );
+  assert.equal(sameIntent.reasonCode, 'same_intent');
+
+  const sharedInterest = scoreResonance(
+    { id: 'viewer-b', intent: 'deep_conversation', interests: ['philosophy'] },
+    { id: 'candidate-b', intent: 'create', interests: ['Philosophy'] },
+  );
+  assert.equal(sharedInterest.reasonCode, 'shared_interests');
+
+  const complementary = scoreResonance(
+    { id: 'viewer-c', intent: 'talk', interests: [] },
+    { id: 'candidate-c', intent: 'listen', interests: [] },
+  );
+  assert.equal(complementary.reasonCode, 'complementary_intent');
+});
