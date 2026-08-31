@@ -28,8 +28,9 @@ function jwt(exp: number): string {
 
 function adapter(fetchImpl: typeof fetch) {
   return new RealtimeKitMediaProviderAdapter({
-    organizationId: "org-1",
-    apiKey: "secret-key",
+    accountId: "account-1",
+    appId: "app-1",
+    apiToken: "server-token",
     subscribeOnlyPreset: "ponder-viewer",
     publisherPreset: "ponder-speaker",
     resolveMeetingId: async (roomId) => `meeting-for-${roomId}`,
@@ -59,10 +60,13 @@ describe("RealtimeKitMediaProviderAdapter", () => {
     expect(init?.method).toBe("POST");
     expect(JSON.parse(String(init?.body))).toMatchObject({
       preset_name: "ponder-viewer",
-      client_specific_id: "user-1",
+      custom_participant_id: "user-1",
     });
+    expect(String(url)).toContain(
+      "/accounts/account-1/realtime/kit/app-1/meetings/meeting-for-room-1/participants",
+    );
     expect(new Headers(init?.headers).get("Authorization")).toBe(
-      `Basic ${Buffer.from("org-1:secret-key").toString("base64")}`,
+      "Bearer server-token",
     );
   });
 
@@ -144,8 +148,9 @@ describe("RealtimeKitMediaProviderAdapter", () => {
     expect(
       () =>
         new RealtimeKitMediaProviderAdapter({
-          organizationId: "org-1",
-          apiKey: "key",
+          accountId: "account-1",
+          appId: "app-1",
+          apiToken: "server-token",
           subscribeOnlyPreset: "viewer",
           publisherPreset: "speaker",
           resolveMeetingId: async () => "meeting-1",
