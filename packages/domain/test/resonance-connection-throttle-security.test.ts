@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 const migration = readFileSync(
-  'supabase/migrations/20260831161000_throttle_resonance_connection_requests.sql',
+  'supabase/migrations/20260831160432_throttle_resonance_connection_requests.sql',
   'utf8'
 );
 
