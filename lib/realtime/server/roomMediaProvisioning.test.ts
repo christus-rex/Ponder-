@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import {
+  createSupabaseRoomMediaProvisioningStore,
   deactivateRealtimeKitMeetingForRoom,
   ensureRealtimeKitMeetingProvisioned,
   type RealtimeKitMeetingControlPlane,
@@ -231,5 +233,84 @@ describe("deactivateRealtimeKitMeetingForRoom", () => {
       deactivateRealtimeKitMeetingForRoom(store, controlPlane, "room-9"),
     ).resolves.toBe(true);
     expect(calls).toEqual(["status:meeting-close:INACTIVE"]);
+  });
+});
+
+
+describe("createSupabaseRoomMediaProvisioningStore", () => {
+  it("scopes mapping reads to the requested room and realtimekit provider", async () => {
+    const filters: Array<[string, string]> = [];
+    const query = {
+      select() {
+        return query;
+      },
+      eq(column: string, value: string) {
+        filters.push([column, value]);
+        return query;
+      },
+      async maybeSingle() {
+        return {
+          data: { provider_meeting_id: " meeting-db " },
+          error: null,
+        };
+      },
+    };
+    const client = {
+      from(table: string) {
+        expect(table).toBe("room_media_provider_mappings");
+        return query;
+      },
+    } as unknown as SupabaseClient;
+
+    const store = createSupabaseRoomMediaProvisioningStore(client);
+    await expect(store.findMeetingId("room-db")).resolves.toBe("meeting-db");
+    expect(filters).toEqual([
+      ["room_id", "room-db"],
+      ["provider", "realtimekit"],
+    ]);
+  });
+
+  it("classifies only PostgreSQL uniqueness failures as provisioning conflicts", async () => {
+    const inserted: unknown[] = [];
+    const client = {
+      from(table: string) {
+        expect(table).toBe("room_media_provider_mappings");
+        return {
+          async insert(value: unknown) {
+            inserted.push(value);
+            return { error: { code: "23505" } };
+          },
+        };
+      },
+    } as unknown as SupabaseClient;
+
+    const store = createSupabaseRoomMediaProvisioningStore(client);
+    await expect(
+      store.tryCreateMapping("room-conflict", "meeting-conflict"),
+    ).resolves.toBe("conflict");
+    expect(inserted).toEqual([
+      {
+        room_id: "room-conflict",
+        provider: "realtimekit",
+        provider_meeting_id: "meeting-conflict",
+      },
+    ]);
+  });
+
+  it("fails closed on non-uniqueness persistence errors", async () => {
+    const client = {
+      from() {
+        return {
+          async insert() {
+            return { error: { code: "42501", message: "permission denied" } };
+          },
+        };
+      },
+    } as unknown as SupabaseClient;
+
+    const store = createSupabaseRoomMediaProvisioningStore(client);
+    await expect(
+      store.tryCreateMapping("room-error", "meeting-error"),
+    ).rejects.toThrow("Unable to persist media provider provisioning state");
   });
 });
