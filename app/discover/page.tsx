@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { signOut } from "@/app/auth/actions";
 import { PresenceHeartbeat } from "@/components/PresenceHeartbeat";
 import { CreateRoomPanel } from "@/components/CreateRoomPanel";
@@ -68,27 +69,39 @@ export default async function DiscoverPage() {
     : [];
 
   let resonanceBatchId: string | null = null;
+  const presenceByUser = new Map<string, boolean>();
+
   if (rankedPeople.length > 0) {
-    const { data: batchId } = await supabase.rpc("record_resonance_impression_batch", {
-      p_candidate_ids: rankedPeople.map(({ candidate }) => candidate.id),
-      p_scores: rankedPeople.map(({ resonance }) => resonance.score),
-      p_reason_codes: rankedPeople.map(
-        ({ resonance }) => resonance.reasonCode ?? "compatible_intent",
-      ),
-    });
+    // Batch issuance and presence lookup are privileged backend orchestration.
+    // The browser session cannot execute either RPC directly.
+    const admin = createAdminClient();
+    const { data: batchId } = await admin.rpc(
+      "record_resonance_impression_batch_for_user",
+      {
+        p_viewer_id: userData.user.id,
+        p_candidate_ids: rankedPeople.map(({ candidate }) => candidate.id),
+        p_scores: rankedPeople.map(({ resonance }) => resonance.score),
+        p_reason_codes: rankedPeople.map(
+          ({ resonance }) => resonance.reasonCode ?? "compatible_intent",
+        ),
+      },
+    );
 
     resonanceBatchId = typeof batchId === "string" ? batchId : null;
-  }
 
-  const presenceByUser = new Map<string, boolean>();
-  if (resonanceBatchId) {
-    const { data: presenceRows } = await supabase.rpc("presence_for_discovery_batch", {
-      p_batch_id: resonanceBatchId,
-    });
+    if (resonanceBatchId) {
+      const { data: presenceRows } = await admin.rpc(
+        "presence_for_discovery_batch_for_user",
+        {
+          p_viewer_id: userData.user.id,
+          p_batch_id: resonanceBatchId,
+        },
+      );
 
-    for (const row of presenceRows ?? []) {
-      if (typeof row?.user_id === "string") {
-        presenceByUser.set(row.user_id, row.available_now === true);
+      for (const row of presenceRows ?? []) {
+        if (typeof row?.user_id === "string") {
+          presenceByUser.set(row.user_id, row.available_now === true);
+        }
       }
     }
   }
