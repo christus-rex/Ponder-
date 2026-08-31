@@ -26,6 +26,10 @@ const presenceOutcomes = readFileSync(
   'supabase/migrations/20260831054500_presence_and_resonance_outcomes.sql',
   'utf8'
 );
+const roomMembership = readFileSync(
+  'supabase/migrations/20260831094000_server_owned_room_membership.sql',
+  'utf8'
+);
 const sql =
   foundation +
   '\n' +
@@ -37,7 +41,9 @@ const sql =
   '\n' +
   roomLifecycle +
   '\n' +
-  presenceOutcomes;
+  presenceOutcomes +
+  '\n' +
+  roomMembership;
 
 test('18+ eligibility is enforced during signup and in private account data', () => {
   assert.match(
@@ -342,5 +348,60 @@ test('connection continuation is server-authoritative and telemetry follows the 
   assert.match(
     presenceOutcomes,
     /Connection is blocked/i
+  );
+});
+
+
+test('room membership lifecycle is server-owned and ejection cannot be client-reversed', () => {
+  assert.match(
+    roomMembership,
+    /revoke insert, update, delete on table public\.room_members from authenticated/i
+  );
+  assert.match(
+    roomMembership,
+    /drop policy if exists "users join as themselves" on public\.room_members/i
+  );
+  assert.match(
+    roomMembership,
+    /drop policy if exists "users update own membership" on public\.room_members/i
+  );
+  assert.match(
+    roomMembership,
+    /drop policy if exists "users leave rooms" on public\.room_members/i
+  );
+  assert.match(
+    roomMembership,
+    /users read own room membership[\s\S]*user_id = \(select auth\.uid\(\)\)/i
+  );
+});
+
+test('host ejection is durable, audited, and callable only through service role', () => {
+  assert.match(
+    roomMembership,
+    /entry_state in \('active', 'ejected'\)/i
+  );
+  assert.match(
+    roomMembership,
+    /create table public\.room_member_moderation_actions/i
+  );
+  assert.match(
+    roomMembership,
+    /create or replace function public\.host_eject_room_member/i
+  );
+  assert.match(
+    roomMembership,
+    /r\.created_by = p_actor_id[\s\S]*r\.status = 'open'/i
+  );
+  assert.match(
+    roomMembership,
+    /set[\s\S]*entry_state = 'ejected'[\s\S]*ejected_at = now\(\)[\s\S]*left_at = now\(\)/i
+  );
+  assert.match(
+    roomMembership,
+    /revoke execute on function public\.host_eject_room_member\(uuid, uuid, uuid, text\)[\s\S]*from public, anon, authenticated/i
+  );
+  assert.match(
+    roomMembership,
+    /grant execute on function public\.host_eject_room_member\(uuid, uuid, uuid, text\)[\s\S]*to service_role/i
   );
 });
