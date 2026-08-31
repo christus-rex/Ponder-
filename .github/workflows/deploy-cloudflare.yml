@@ -1,18 +1,6 @@
-name: Deploy Full Ponder+ App
+name: Deploy Full Ponder+ App (manual fallback)
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "app/**"
-      - "lib/**"
-      - "packages/**"
-      - "services/**"
-      - "proxy.ts"
-      - "next.config.ts"
-      - "package.json"
-      - "package-lock.json"
-      - ".github/workflows/deploy-cloudflare.yml"
   workflow_dispatch:
 
 permissions:
