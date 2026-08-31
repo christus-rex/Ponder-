@@ -86,7 +86,7 @@ export async function POST(
   try {
     verifiedCapability = await verifyTrustedMediaCapability(
       {
-        capabilityToken: freshAuthorization.token,
+        capabilityToken: input.capabilityToken,
         expectedRoomId: roomId,
         expectedUserId: userData.user.id,
         expectedAuthoritySequence: input.authoritySequence,
@@ -179,7 +179,7 @@ export async function POST(
   try {
     const credentials = await exchangeTrustedMediaCapability(
       {
-        capabilityToken: input.capabilityToken,
+        capabilityToken: freshAuthorization.token,
         expectedRoomId: roomId,
         expectedUserId: userData.user.id,
         expectedAuthoritySequence: input.authoritySequence,
