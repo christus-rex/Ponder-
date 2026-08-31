@@ -52,20 +52,6 @@ export default async function DiscoverPage() {
     : null;
 
   const peoplePool = people ?? [];
-  const presenceByUser = new Map<string, boolean>();
-
-  if (peoplePool.length > 0) {
-    const { data: presenceRows } = await supabase.rpc("presence_for_candidates", {
-      p_candidate_ids: peoplePool.map((person) => person.id),
-    });
-
-    for (const row of presenceRows ?? []) {
-      if (typeof row?.user_id === "string") {
-        presenceByUser.set(row.user_id, row.available_now === true);
-      }
-    }
-  }
-
   const rankedPeople = viewerProfile
     ? rankResonance(
         viewerProfile,
@@ -73,7 +59,10 @@ export default async function DiscoverPage() {
           ...person,
           intent: person.current_intent as SocialIntent,
           interests: person.interests ?? [],
-          availableNow: presenceByUser.get(person.id) ?? false,
+          // Availability is intentionally not an input to discovery ranking.
+          // Presence is fetched only after a server-owned impression batch is
+          // issued, so it cannot become a general UUID lookup primitive.
+          availableNow: false,
         })),
       ).slice(0, 12)
     : [];
@@ -90,6 +79,27 @@ export default async function DiscoverPage() {
 
     resonanceBatchId = typeof batchId === "string" ? batchId : null;
   }
+
+  const presenceByUser = new Map<string, boolean>();
+  if (resonanceBatchId) {
+    const { data: presenceRows } = await supabase.rpc("presence_for_discovery_batch", {
+      p_batch_id: resonanceBatchId,
+    });
+
+    for (const row of presenceRows ?? []) {
+      if (typeof row?.user_id === "string") {
+        presenceByUser.set(row.user_id, row.available_now === true);
+      }
+    }
+  }
+
+  const rankedPeopleWithPresence = rankedPeople.map(({ candidate, resonance }) => ({
+    candidate: {
+      ...candidate,
+      availableNow: presenceByUser.get(candidate.id) ?? false,
+    },
+    resonance,
+  }));
 
   const ejectedRoomIds = new Set(
     (ejectedMemberships ?? []).map((membership) => membership.room_id),
@@ -145,10 +155,10 @@ export default async function DiscoverPage() {
         <p className="sectionLabel">RESONANCE</p>
         <h2>Find conversation before popularity.</h2>
         <p className="walletNote" style={{ marginTop: 10 }}>
-          Ranked by conversational intent and shared interests. Live availability can add at most four points — never gifting or spend.
+          Ranked by conversational intent and shared interests. Opt-in live availability is shown only after the discovery batch is issued; it does not change ranking or expose general presence lookup.
         </p>
         <div className="roomGrid" style={{ marginTop: 28 }}>
-          {rankedPeople.map(({ candidate: person, resonance }) => (
+          {rankedPeopleWithPresence.map(({ candidate: person, resonance }) => (
             <article
               className="roomCard"
               data-resonance-batch={resonanceBatchId ?? undefined}
