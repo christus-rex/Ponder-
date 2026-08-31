@@ -65,8 +65,13 @@ export async function ensureRealtimeKitMeetingProvisioned(
 
   const winnerMeetingId = await store.findMeetingId(roomId);
   if (!winnerMeetingId) {
-    await compensateCreatedMeeting(controlPlane, createdMeetingId);
-    throw new Error("Media provider mapping conflict did not produce a winner");
+    // A uniqueness failure without a same-room winner is ambiguous: it may
+    // represent a provider-meeting ID collision with another room. Do not
+    // mutate that provider meeting because doing so could disrupt another
+    // room. Surface the condition for operator reconciliation instead.
+    throw new Error(
+      "Media provider mapping conflict requires manual reconciliation",
+    );
   }
 
   if (winnerMeetingId !== createdMeetingId) {
