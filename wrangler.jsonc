@@ -13,13 +13,6 @@
   "observability": {
     "enabled": true
   },
-  "vars": {
-    "NEXT_PUBLIC_SUPABASE_URL": "https://wjqcjlcmgeujndxvtprj.supabase.co",
-    "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_T-ItORyhh_ptlqmofZXXgA_mvrx4ZgM"
-  },
-  "build": {
-    "command": "npm install --no-save --package-lock=false @opennextjs/cloudflare@latest wrangler@latest && NEXT_PUBLIC_SUPABASE_URL=https://wjqcjlcmgeujndxvtprj.supabase.co NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_T-ItORyhh_ptlqmofZXXgA_mvrx4ZgM npx opennextjs-cloudflare build"
-  },
   "secrets": {
     "required": [
       "SUPABASE_SERVICE_ROLE_KEY",
