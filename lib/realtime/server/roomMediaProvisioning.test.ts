@@ -117,6 +117,26 @@ describe("ensureRealtimeKitMeetingProvisioned", () => {
     ]);
   });
 
+  it("disables a created meeting when the provider returns an unmappable ID", async () => {
+    const { store } = fakeStore();
+    const invalidMeetingId = "x".repeat(201);
+    const { controlPlane, calls } = fakeControlPlane({
+      createdMeetingId: invalidMeetingId,
+    });
+
+    await expect(
+      ensureRealtimeKitMeetingProvisioned(store, controlPlane, {
+        roomId: "room-invalid-provider-id",
+        title: "Invalid provider ID",
+      }),
+    ).rejects.toThrow("invalid meeting ID");
+
+    expect(calls).toEqual([
+      "create:room-invalid-provider-id:Invalid provider ID",
+      `status:${invalidMeetingId}:INACTIVE`,
+    ]);
+  });
+
   it("disables a newly created meeting when mapping persistence fails", async () => {
     const state = fakeStore();
     state.setCreateError(new Error("database unavailable"));
