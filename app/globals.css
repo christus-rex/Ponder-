@@ -1009,3 +1009,19 @@ label {
     flex: 1 1 auto;
   }
 }
+
+
+.liveRoomBackButton {
+  appearance: none;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.liveRoomBackButton:disabled {
+  opacity: .6;
+  cursor: wait;
+}

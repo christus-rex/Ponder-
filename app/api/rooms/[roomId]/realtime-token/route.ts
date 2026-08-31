@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createRoomBrainToken, type RoomBrainTokenRole } from "@/packages/domain/src/room-brain-token";
+import { createRoomMembershipAdminStoreFromEnv } from "@/lib/realtime/server/roomMembership";
 
 export const dynamic = "force-dynamic";
 
@@ -65,21 +66,31 @@ export async function POST(
   if (room.created_by === userData.user.id) {
     role = "host";
   } else {
-    const { error: membershipError } = await supabase
-      .from("room_members")
-      .upsert(
-        {
-          room_id: roomId,
-          user_id: userData.user.id,
-          left_at: null,
-        },
-        { onConflict: "room_id,user_id" }
-      );
-
-    if (membershipError) {
+    const membershipStore = createRoomMembershipAdminStoreFromEnv();
+    if (!membershipStore) {
       return NextResponse.json(
-        { error: "Unable to join the room." },
-        { status: 403 }
+        { error: "Room membership service is not configured." },
+        { status: 503 },
+      );
+    }
+
+    let membershipState;
+    try {
+      membershipState = await membershipStore.ensureActiveMembership(
+        roomId,
+        userData.user.id,
+      );
+    } catch {
+      return NextResponse.json(
+        { error: "Unable to establish room membership." },
+        { status: 503 },
+      );
+    }
+
+    if (membershipState === "ejected") {
+      return NextResponse.json(
+        { error: "You have been removed from this room." },
+        { status: 403 },
       );
     }
   }

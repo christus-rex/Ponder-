@@ -100,3 +100,25 @@ test('speaker demotion cannot be issued through the ordinary client command path
     /trusted backend moderation/
   );
 });
+
+
+test('participant ejection cannot be issued through the ordinary client command path', () => {
+  const protocol = initialRoomBrainProtocolState(initialRoomBrainState());
+  assert.throws(
+    () =>
+      applyAuthorizedRoomBrainEnvelope(
+        protocol,
+        { userId: 'host-1', role: 'host' },
+        envelope(
+          'cmd_eject_1001',
+          {
+            type: 'eject_participant',
+            actorUserId: 'host-1',
+            targetUserId: 'viewer-1'
+          },
+          0
+        )
+      ),
+    /trusted backend moderation/
+  );
+});

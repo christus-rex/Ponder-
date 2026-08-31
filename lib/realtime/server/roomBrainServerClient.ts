@@ -179,6 +179,129 @@ export async function requestAuthoritativeSpeakerDemotion(
   };
 }
 
+export async function requestAuthoritativeParticipantEjection(
+  config: RoomBrainServerClientConfig,
+  input: {
+    roomId: string;
+    actorUserId: string;
+    actorRole: "host" | "moderator";
+    targetUserId: string;
+    expectedSequence: number;
+  },
+): Promise<{
+  sequence: number;
+  targetUserId: string;
+  ejected: true;
+  duplicate: boolean;
+}> {
+  validateConfig(config);
+  if (!Number.isSafeInteger(input.expectedSequence) || input.expectedSequence < 0) {
+    throw new Error("Invalid Room Brain expected sequence");
+  }
+  if (!input.targetUserId.trim() || input.targetUserId.length > 128) {
+    throw new Error("Invalid Room Brain ejection target");
+  }
+  if (input.targetUserId === input.actorUserId) {
+    throw new Error("Room moderator cannot eject self");
+  }
+
+  const token = await createServerRoomBrainToken(config, {
+    roomId: input.roomId,
+    userId: input.actorUserId,
+    role: input.actorRole,
+  });
+  const url = roomBrainModerationActionUrl(
+    config.websocketUrl,
+    input.roomId,
+    config.allowedHosts ?? [],
+  );
+
+  let expectedSequence = input.expectedSequence;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const response = await (config.fetchImpl ?? fetch)(url, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        commandId: `srv_eject_${randomUUID().replaceAll("-", "")}`,
+        expectedSequence,
+        action: "eject_participant",
+        targetUserId: input.targetUserId,
+      }),
+      cache: "no-store",
+    });
+
+    if (response.status === 409 && attempt === 0) {
+      const conflict = await readJson(response);
+      const currentSequence = readSnapshotSequence(conflict);
+      if (currentSequence !== null) {
+        expectedSequence = currentSequence;
+        continue;
+      }
+    }
+
+    if (!response.ok) {
+      throw new RoomBrainServerRequestError(
+        "Room Brain participant ejection failed",
+        response.status,
+      );
+    }
+
+    const value = await readJson(response);
+    if (typeof value !== "object" || value === null || Array.isArray(value)) {
+      throw new RoomBrainServerRequestError(
+        "Room Brain returned an invalid ejection response",
+        502,
+      );
+    }
+    const record = value as Record<string, unknown>;
+    if (
+      !Number.isSafeInteger(record.sequence) ||
+      record.targetUserId !== input.targetUserId ||
+      record.ejected !== true ||
+      typeof record.duplicate !== "boolean"
+    ) {
+      throw new RoomBrainServerRequestError(
+        "Room Brain returned an invalid ejection response",
+        502,
+      );
+    }
+
+    return {
+      sequence: record.sequence as number,
+      targetUserId: input.targetUserId,
+      ejected: true,
+      duplicate: record.duplicate,
+    };
+  }
+
+  throw new RoomBrainServerRequestError(
+    "Room Brain participant ejection did not converge",
+    409,
+  );
+}
+
+function readSnapshotSequence(value: unknown): number | null {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return null;
+  }
+  const snapshot = (value as Record<string, unknown>).snapshot;
+  if (
+    typeof snapshot !== "object" ||
+    snapshot === null ||
+    Array.isArray(snapshot)
+  ) {
+    return null;
+  }
+  const sequence = (snapshot as Record<string, unknown>).sequence;
+  return Number.isSafeInteger(sequence) && (sequence as number) >= 0
+    ? (sequence as number)
+    : null;
+}
+
 async function createServerRoomBrainToken(
   config: RoomBrainServerClientConfig,
   input: {

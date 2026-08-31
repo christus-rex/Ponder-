@@ -74,6 +74,30 @@ export async function POST(
     return NextResponse.json({ error: "Live room is not available." }, { status: 404 });
   }
 
+  if (room.created_by !== userData.user.id) {
+    const { data: membership, error: membershipError } = await supabase
+      .from("room_members")
+      .select("room_id,entry_state")
+      .eq("room_id", roomId)
+      .eq("user_id", userData.user.id)
+      .eq("entry_state", "active")
+      .is("left_at", null)
+      .maybeSingle();
+
+    if (membershipError) {
+      return NextResponse.json(
+        { error: "Unable to verify room membership." },
+        { status: 503 },
+      );
+    }
+    if (!membership) {
+      return NextResponse.json(
+        { error: "Active room membership is required." },
+        { status: 403 },
+      );
+    }
+  }
+
   const config = readServerConfig();
   if (!config) {
     return NextResponse.json(

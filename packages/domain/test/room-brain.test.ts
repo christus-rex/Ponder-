@@ -93,3 +93,42 @@ test('speaker demotion requires moderator authority and a current speaker target
     /Only speakers can be demoted/
   );
 });
+
+
+test('host ejection removes participant and stale speaker-queue state', () => {
+  let state = withPeople();
+  state = applyRoomBrainCommand(state, {
+    type: 'request_seat',
+    userId: 'viewer'
+  });
+  state = applyRoomBrainCommand(state, {
+    type: 'eject_participant',
+    actorUserId: 'host',
+    targetUserId: 'viewer'
+  });
+
+  assert.equal(state.participants.viewer, undefined);
+  assert.deepEqual(state.speakerQueue, []);
+});
+
+test('participant ejection requires moderator authority and cannot target the host', () => {
+  const state = withPeople();
+  assert.throws(
+    () =>
+      applyRoomBrainCommand(state, {
+        type: 'eject_participant',
+        actorUserId: 'viewer',
+        targetUserId: 'host'
+      }),
+    /Moderator privilege/
+  );
+  assert.throws(
+    () =>
+      applyRoomBrainCommand(state, {
+        type: 'eject_participant',
+        actorUserId: 'host',
+        targetUserId: 'host'
+      }),
+    /cannot eject self/
+  );
+});

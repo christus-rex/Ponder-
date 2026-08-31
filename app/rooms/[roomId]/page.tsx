@@ -31,6 +31,18 @@ export default async function LiveRoomPage({ params }: LiveRoomPageProps) {
   if (roomError) throw new Error("Unable to load live room.");
   if (!room || room.status !== "open") notFound();
 
+  if (room.created_by !== userData.user.id) {
+    const { data: membership, error: membershipError } = await supabase
+      .from("room_members")
+      .select("entry_state")
+      .eq("room_id", roomId)
+      .eq("user_id", userData.user.id)
+      .maybeSingle();
+
+    if (membershipError) throw new Error("Unable to verify room membership.");
+    if (membership?.entry_state === "ejected") notFound();
+  }
+
   return (
     <LiveRoomClient
       roomId={room.id}
