@@ -63,8 +63,8 @@ begin
   -- Serialize session replacement for one room/user without holding an
   -- application process lock. This prevents concurrent exchanges from
   -- overwriting the only revocation handle for an active provider participant.
-  perform pg_advisory_xact_lock(
-    hashtextextended(p_room_id::text || ':' || p_user_id::text, 0)
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(p_room_id::text || ':' || p_user_id::text, 0)
   );
 
   select coalesce(array_agg(s.provider_participant_id), '{}'::text[])
