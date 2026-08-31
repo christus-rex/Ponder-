@@ -3,7 +3,9 @@
   "name": "ponder-plus",
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-08-30",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
@@ -17,5 +19,18 @@
   },
   "build": {
     "command": "npm install --no-save --package-lock=false @opennextjs/cloudflare@latest wrangler@latest && NEXT_PUBLIC_SUPABASE_URL=https://wjqcjlcmgeujndxvtprj.supabase.co NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_T-ItORyhh_ptlqmofZXXgA_mvrx4ZgM npx opennextjs-cloudflare build"
+  },
+  "secrets": {
+    "required": [
+      "SUPABASE_SERVICE_ROLE_KEY",
+      "ROOM_BRAIN_AUTH_SECRET",
+      "MEDIA_SESSION_AUTH_SECRET",
+      "MEDIA_RECONCILIATION_SECRET",
+      "REALTIMEKIT_APP_ID",
+      "CLOUDFLARE_REALTIME_API_TOKEN",
+      "REALTIMEKIT_SUBSCRIBE_ONLY_PRESET",
+      "REALTIMEKIT_PUBLISHER_PRESET",
+      "OPENAI_API_KEY"
+    ]
   }
 }
