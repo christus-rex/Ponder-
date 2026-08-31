@@ -27,8 +27,14 @@ export interface VerifiedProviderExchangeContext {
 
 export interface ProviderSessionCredentials {
   provider: string;
+  providerParticipantId: string;
   participantToken: string;
   expiresAt: number;
+}
+
+export interface TrustedProviderExchangeResult extends ProviderSessionCredentials {
+  verifiedRole: MediaRole;
+  authoritySequence: number;
 }
 
 export interface TrustedMediaProviderAdapter {
@@ -50,7 +56,7 @@ export async function exchangeTrustedMediaCapability(
   adapter: TrustedMediaProviderAdapter,
   mediaSessionSecret: string,
   nowEpochSeconds = Math.floor(Date.now() / 1000)
-): Promise<ProviderSessionCredentials> {
+): Promise<TrustedProviderExchangeResult> {
   validateExpectedSequence(input.expectedAuthoritySequence);
 
   const payload = await verifyMediaSessionToken(
@@ -71,7 +77,11 @@ export async function exchangeTrustedMediaCapability(
   });
 
   validateProviderCredentials(credentials, nowEpochSeconds, payload.exp);
-  return credentials;
+  return {
+    ...credentials,
+    verifiedRole: payload.role,
+    authoritySequence: payload.authoritySequence,
+  };
 }
 
 function assertExpectedBindings(
@@ -110,6 +120,12 @@ function validateProviderCredentials(
 ): void {
   if (!credentials.provider.trim()) {
     throw new Error("Provider session is missing provider identity");
+  }
+  if (
+    !credentials.providerParticipantId.trim() ||
+    credentials.providerParticipantId.trim().length > 200
+  ) {
+    throw new Error("Provider session is missing participant revocation handle");
   }
   if (!credentials.participantToken.trim()) {
     throw new Error("Provider session is missing participant credential");

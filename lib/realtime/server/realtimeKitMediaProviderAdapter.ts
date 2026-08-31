@@ -102,6 +102,7 @@ export class RealtimeKitMediaProviderAdapter
 
     return {
       provider: "realtimekit",
+      providerParticipantId: participantId,
       participantToken: token,
       expiresAt,
     };

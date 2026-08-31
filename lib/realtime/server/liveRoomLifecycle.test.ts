@@ -9,11 +9,18 @@ import type {
   RealtimeKitMeetingControlPlane,
   RoomMediaProvisioningStore,
 } from "./roomMediaProvisioning";
+import type {
+  MediaProviderParticipantRevoker,
+  RoomMediaProviderSessionStore,
+  TrackedMediaProviderSession,
+} from "./roomMediaProviderSession";
 
 function fakes(options?: {
   failOpen?: boolean;
   failDeactivate?: boolean;
+  failParticipantRevoke?: boolean;
   existingMeetingId?: string | null;
+  trackedParticipantIds?: string[];
 }) {
   const events: string[] = [];
   let mapping = options?.existingMeetingId ?? null;
@@ -62,7 +69,50 @@ function fakes(options?: {
     },
   };
 
-  return { store, mediaStore, controlPlane, events };
+  const trackedSessions: TrackedMediaProviderSession[] = (
+    options?.trackedParticipantIds ?? []
+  ).map((providerParticipantId, index) => ({
+    roomId: "room-1",
+    userId: `user-${index + 1}`,
+    providerParticipantId,
+    authoritySequence: 10 + index,
+    role: "speaker",
+    expiresAt: 1_800_000_020,
+  }));
+
+  const sessionStore: RoomMediaProviderSessionStore = {
+    async registerActiveSession() {
+      return [];
+    },
+    async isCurrentSession() {
+      return true;
+    },
+    async listActiveRoomSessions(roomId) {
+      events.push(`db:list-sessions:${roomId}`);
+      return trackedSessions;
+    },
+    async markRevoked(_roomId, userId, participantId) {
+      events.push(`db:revoked:${userId}:${participantId}`);
+    },
+  };
+
+  const participantRevoker: MediaProviderParticipantRevoker = {
+    async revokeParticipant(_roomId, participantId) {
+      events.push(`provider:revoke:${participantId}`);
+      if (options?.failParticipantRevoke) {
+        throw new Error("participant revoke failed");
+      }
+    },
+  };
+
+  return {
+    store,
+    mediaStore,
+    controlPlane,
+    sessionStore,
+    participantRevoker,
+    events,
+  };
 }
 
 describe("createBackendOwnedLiveRoom", () => {
@@ -153,92 +203,226 @@ describe("createBackendOwnedLiveRoom", () => {
 });
 
 describe("closeBackendOwnedLiveRoom", () => {
-  it("closes Ponder authority before deactivating provider media", async () => {
-    const { store, mediaStore, controlPlane, events } = fakes({
+  it("closes Ponder authority, revokes active participants, then deactivates the meeting", async () => {
+    const {
+      store,
+      mediaStore,
+      controlPlane,
+      sessionStore,
+      participantRevoker,
+      events,
+    } = fakes({
       existingMeetingId: "meeting-1",
+      trackedParticipantIds: ["participant-1", "participant-2"],
     });
+
     await expect(
-      closeBackendOwnedLiveRoom(store, mediaStore, controlPlane, {
-        roomId: "room-1",
-        createdBy: "user-1",
-      }),
+      closeBackendOwnedLiveRoom(
+        store,
+        mediaStore,
+        controlPlane,
+        sessionStore,
+        participantRevoker,
+        {
+          roomId: "room-1",
+          createdBy: "user-1",
+        },
+      ),
     ).resolves.toEqual({ roomId: "room-1", status: "closed" });
+
     expect(events).toEqual([
       "db:close:room-1:user-1",
+      "db:list-sessions:room-1",
+      "provider:revoke:participant-1",
+      "db:revoked:user-1:participant-1",
+      "provider:revoke:participant-2",
+      "db:revoked:user-2:participant-2",
       "provider:INACTIVE:meeting-1",
     ]);
   });
 
-  it("keeps Ponder closed even when provider deactivation fails", async () => {
-    const { store, mediaStore, controlPlane, events } = fakes({
+  it("still deactivates the meeting when an individual participant revocation fails", async () => {
+    const {
+      store,
+      mediaStore,
+      controlPlane,
+      sessionStore,
+      participantRevoker,
+      events,
+    } = fakes({
       existingMeetingId: "meeting-1",
+      trackedParticipantIds: ["participant-1"],
+      failParticipantRevoke: true,
+    });
+
+    await expect(
+      closeBackendOwnedLiveRoom(
+        store,
+        mediaStore,
+        controlPlane,
+        sessionStore,
+        participantRevoker,
+        {
+          roomId: "room-1",
+          createdBy: "user-1",
+        },
+      ),
+    ).rejects.toThrow("Provider media cleanup failed");
+
+    expect(events[0]).toBe("db:close:room-1:user-1");
+    expect(events).toContain("provider:INACTIVE:meeting-1");
+  });
+
+  it("keeps Ponder closed when meeting deactivation fails after participant revocation", async () => {
+    const {
+      store,
+      mediaStore,
+      controlPlane,
+      sessionStore,
+      participantRevoker,
+      events,
+    } = fakes({
+      existingMeetingId: "meeting-1",
+      trackedParticipantIds: ["participant-1"],
       failDeactivate: true,
     });
+
     await expect(
-      closeBackendOwnedLiveRoom(store, mediaStore, controlPlane, {
-        roomId: "room-1",
-        createdBy: "user-1",
-      }),
-    ).rejects.toThrow("deactivate failed");
+      closeBackendOwnedLiveRoom(
+        store,
+        mediaStore,
+        controlPlane,
+        sessionStore,
+        participantRevoker,
+        {
+          roomId: "room-1",
+          createdBy: "user-1",
+        },
+      ),
+    ).rejects.toThrow("Provider media cleanup failed");
+
     expect(events[0]).toBe("db:close:room-1:user-1");
+    expect(events).toContain("provider:revoke:participant-1");
   });
 });
 
 describe("moderationCloseBackendOwnedLiveRoom", () => {
-  it("writes the audited authoritative close before provider cleanup", async () => {
-    const { store, mediaStore, controlPlane, events } = fakes({
+  it("writes the audited close before active participant and meeting cleanup", async () => {
+    const {
+      store,
+      mediaStore,
+      controlPlane,
+      sessionStore,
+      participantRevoker,
+      events,
+    } = fakes({
       existingMeetingId: "meeting-1",
+      trackedParticipantIds: ["participant-1"],
     });
+
     await expect(
-      moderationCloseBackendOwnedLiveRoom(store, mediaStore, controlPlane, {
-        roomId: "room-1",
-        actorId: "mod-1",
-        actorRole: "moderator",
-        reason: "Policy violation",
-      }),
+      moderationCloseBackendOwnedLiveRoom(
+        store,
+        mediaStore,
+        controlPlane,
+        sessionStore,
+        participantRevoker,
+        {
+          roomId: "room-1",
+          actorId: "mod-1",
+          actorRole: "moderator",
+          reason: "Policy violation",
+        },
+      ),
     ).resolves.toEqual({ roomId: "room-1", status: "closed", actionId: 42 });
+
     expect(events).toEqual([
       "db:moderation-close:room-1:mod-1:moderator:Policy violation",
+      "db:list-sessions:room-1",
+      "provider:revoke:participant-1",
+      "db:revoked:user-1:participant-1",
       "provider:INACTIVE:meeting-1",
     ]);
   });
 
-  it("leaves the audited Ponder close authoritative if provider cleanup fails", async () => {
-    const { store, mediaStore, controlPlane, events } = fakes({
+  it("keeps the audited close authoritative and still deactivates the meeting if participant cleanup fails", async () => {
+    const {
+      store,
+      mediaStore,
+      controlPlane,
+      sessionStore,
+      participantRevoker,
+      events,
+    } = fakes({
       existingMeetingId: "meeting-1",
-      failDeactivate: true,
+      trackedParticipantIds: ["participant-1"],
+      failParticipantRevoke: true,
     });
+
     await expect(
-      moderationCloseBackendOwnedLiveRoom(store, mediaStore, controlPlane, {
-        roomId: "room-1",
-        actorId: "admin-1",
-        actorRole: "admin",
-        reason: "Safety response",
-      }),
-    ).rejects.toThrow("deactivate failed");
+      moderationCloseBackendOwnedLiveRoom(
+        store,
+        mediaStore,
+        controlPlane,
+        sessionStore,
+        participantRevoker,
+        {
+          roomId: "room-1",
+          actorId: "admin-1",
+          actorRole: "admin",
+          reason: "Safety response",
+        },
+      ),
+    ).rejects.toThrow("Provider media cleanup failed");
+
     expect(events[0]).toBe(
       "db:moderation-close:room-1:admin-1:admin:Safety response",
     );
+    expect(events).toContain("provider:INACTIVE:meeting-1");
   });
 
   it("rejects non-moderation roles and invalid reasons before touching state", async () => {
-    const { store, mediaStore, controlPlane, events } = fakes();
+    const {
+      store,
+      mediaStore,
+      controlPlane,
+      sessionStore,
+      participantRevoker,
+      events,
+    } = fakes();
+
     await expect(
-      moderationCloseBackendOwnedLiveRoom(store, mediaStore, controlPlane, {
-        roomId: "room-1",
-        actorId: "user-1",
-        actorRole: "member" as "moderator",
-        reason: "Policy violation",
-      }),
+      moderationCloseBackendOwnedLiveRoom(
+        store,
+        mediaStore,
+        controlPlane,
+        sessionStore,
+        participantRevoker,
+        {
+          roomId: "room-1",
+          actorId: "user-1",
+          actorRole: "member" as "moderator",
+          reason: "Policy violation",
+        },
+      ),
     ).rejects.toThrow("moderator or admin");
+
     await expect(
-      moderationCloseBackendOwnedLiveRoom(store, mediaStore, controlPlane, {
-        roomId: "room-1",
-        actorId: "mod-1",
-        actorRole: "moderator",
-        reason: "x",
-      }),
+      moderationCloseBackendOwnedLiveRoom(
+        store,
+        mediaStore,
+        controlPlane,
+        sessionStore,
+        participantRevoker,
+        {
+          roomId: "room-1",
+          actorId: "mod-1",
+          actorRole: "moderator",
+          reason: "x",
+        },
+      ),
     ).rejects.toThrow("between 3 and 500");
+
     expect(events).toEqual([]);
   });
 });

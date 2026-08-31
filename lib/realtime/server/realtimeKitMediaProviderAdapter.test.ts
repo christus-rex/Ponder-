@@ -53,6 +53,7 @@ describe("RealtimeKitMediaProviderAdapter", () => {
     const credentials = await adapter(fetchImpl).exchange(context());
 
     expect(credentials.provider).toBe("realtimekit");
+    expect(credentials.providerParticipantId).toBe("participant-1");
     expect(credentials.expiresAt).toBe(1_800_000_020);
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     const [url, init] = fetchImpl.mock.calls[0]!;

@@ -2,6 +2,9 @@ import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { CloudflareRealtimeKitMeetingControlPlane } from "./cloudflareRealtimeKitMeetingControlPlane";
 import { createSupabaseLiveRoomLifecycleStore } from "./liveRoomLifecycle";
 import { createSupabaseRoomMediaProvisioningStore } from "./roomMediaProvisioning";
+import { createSupabaseRoomMediaProviderSessionStore } from "./roomMediaProviderSession";
+import { CloudflareRealtimeKitParticipantRevoker } from "./cloudflareRealtimeKitParticipantRevoker";
+import { resolveRealtimeKitMeetingId } from "./roomMediaProviderMapping";
 
 export function createLiveRoomServerRuntime() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
@@ -33,9 +36,22 @@ export function createLiveRoomServerRuntime() {
     ...(allowedApiHosts.length > 0 ? { allowedApiHosts } : {}),
   });
 
+  const participantRevoker = new CloudflareRealtimeKitParticipantRevoker({
+    accountId,
+    appId,
+    apiToken,
+    resolveMeetingId: (roomId) => resolveRealtimeKitMeetingId(admin, roomId),
+    ...(process.env.REALTIMEKIT_API_BASE?.trim()
+      ? { apiBase: process.env.REALTIMEKIT_API_BASE.trim() }
+      : {}),
+    ...(allowedApiHosts.length > 0 ? { allowedApiHosts } : {}),
+  });
+
   return {
     roomStore: createSupabaseLiveRoomLifecycleStore(admin),
     mediaStore: createSupabaseRoomMediaProvisioningStore(admin),
+    sessionStore: createSupabaseRoomMediaProviderSessionStore(admin),
     controlPlane,
+    participantRevoker,
   };
 }
