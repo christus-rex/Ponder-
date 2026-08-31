@@ -2,8 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 import { RealtimeKitMediaProviderAdapter } from "./realtimeKitMediaProviderAdapter";
 
 const baseConfig = {
-  organizationId: "org-1",
-  apiKey: "secret-key",
+  accountId: "account-1",
+  appId: "app-1",
+  apiToken: "server-token",
   subscribeOnlyPreset: "ponder-viewer",
   publisherPreset: "ponder-speaker",
   resolveMeetingId: async () => "meeting-1",
@@ -15,7 +16,7 @@ describe("RealtimeKit API host policy", () => {
       () =>
         new RealtimeKitMediaProviderAdapter({
           ...baseConfig,
-          apiBase: "https://attacker.example/v2",
+          apiBase: "https://attacker.example/client/v4",
           fetchImpl: vi.fn<typeof fetch>(),
         }),
     ).toThrow("API host is not trusted");
@@ -26,7 +27,7 @@ describe("RealtimeKit API host policy", () => {
       () =>
         new RealtimeKitMediaProviderAdapter({
           ...baseConfig,
-          apiBase: "https://realtime.internal.example/v2",
+          apiBase: "https://realtime.internal.example/client/v4",
           allowedApiHosts: ["realtime.internal.example"],
           fetchImpl: vi.fn<typeof fetch>(),
         }),
@@ -38,7 +39,7 @@ describe("RealtimeKit API host policy", () => {
       () =>
         new RealtimeKitMediaProviderAdapter({
           ...baseConfig,
-          apiBase: "https://user:pass@api.dyte.io/v2",
+          apiBase: "https://user:pass@api.cloudflare.com/client/v4",
           fetchImpl: vi.fn<typeof fetch>(),
         }),
     ).toThrow("must not contain credentials");
