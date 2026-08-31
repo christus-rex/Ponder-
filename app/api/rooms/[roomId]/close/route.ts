@@ -78,10 +78,10 @@ export async function POST(
       headers: { "Cache-Control": "no-store" },
     });
   } catch {
-    // Ponder authority is closed before provider deactivation is attempted.
-    // A failure here requires reconciliation but never reopens the room.
+    // Do not claim closure if the database transition itself failed. The
+    // lifecycle helper still orders successful closes before provider cleanup.
     return NextResponse.json(
-      { error: "Room was closed, but provider cleanup requires reconciliation." },
+      { error: "Unable to complete room closure; lifecycle reconciliation is required." },
       { status: 503 },
     );
   }
