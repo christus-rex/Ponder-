@@ -81,10 +81,12 @@ function fakes(options?: {
   }));
 
   const sessionStore: RoomMediaProviderSessionStore = {
-    async getActiveUserSession() {
-      return null;
+    async registerActiveSession() {
+      return [];
     },
-    async upsertActiveSession() {},
+    async isCurrentSession() {
+      return true;
+    },
     async listActiveRoomSessions(roomId) {
       events.push(`db:list-sessions:${roomId}`);
       return trackedSessions;
