@@ -198,6 +198,56 @@ export function LiveRoomClient({
     }
   }
 
+  async function ejectParticipant(targetUserId: string) {
+    if (!room || !isHost) return;
+    setBusyAction(`eject:${targetUserId}`);
+    try {
+      const response = await fetch(
+        `/api/rooms/${encodeURIComponent(roomId)}/participants/${encodeURIComponent(
+          targetUserId,
+        )}/eject`,
+        {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            expectedSequence: room.sequence,
+            reason: "Removed by room host",
+          }),
+          cache: "no-store",
+        },
+      );
+      const payload = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        ejected?: boolean;
+        cleanupPending?: boolean;
+      };
+
+      if (!response.ok) {
+        if (payload.ejected) {
+          setNotice(
+            payload.error ??
+              "Participant is removed; realtime cleanup is still converging.",
+          );
+          return;
+        }
+        throw new Error(payload.error ?? "Unable to remove participant.");
+      }
+
+      setNotice("Participant removed from this room.");
+    } catch (error) {
+      setNotice(
+        error instanceof Error
+          ? error.message
+          : "Unable to remove participant.",
+      );
+    } finally {
+      setBusyAction("");
+    }
+  }
+
   async function closeRoom() {
     if (!isHost) return;
     setBusyAction("close");
@@ -303,7 +353,9 @@ export function LiveRoomClient({
                 provider={providerRef.current}
                 canModerate={isHost}
                 demoting={busyAction === `demote:${participant.userId}`}
+                ejecting={busyAction === `eject:${participant.userId}`}
                 onDemote={() => void demoteSpeaker(participant.userId)}
+                onEject={() => void ejectParticipant(participant.userId)}
               />
             ))}
             {participantRows.length === 0 ? (
@@ -441,7 +493,9 @@ function ParticipantTile({
   provider,
   canModerate,
   demoting,
+  ejecting,
   onDemote,
+  onEject,
 }: {
   participant: {
     userId: string;
@@ -452,7 +506,9 @@ function ParticipantTile({
   provider: RealtimeKitMediaProvider | null;
   canModerate: boolean;
   demoting: boolean;
+  ejecting: boolean;
   onDemote: () => void;
+  onEject: () => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -492,9 +548,19 @@ function ParticipantTile({
             className="secondaryButton compactButton"
             type="button"
             onClick={onDemote}
-            disabled={demoting}
+            disabled={demoting || ejecting}
           >
             {demoting ? "Demoting…" : "Return to audience"}
+          </button>
+        ) : null}
+        {canModerate && !isSelf ? (
+          <button
+            className="dangerButton compactButton"
+            type="button"
+            onClick={onEject}
+            disabled={demoting || ejecting}
+          >
+            {ejecting ? "Removing…" : "Remove from room"}
           </button>
         ) : null}
       </div>
