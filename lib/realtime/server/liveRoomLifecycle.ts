@@ -15,6 +15,8 @@ export type SocialIntent =
   | "listen"
   | "hang_out";
 
+export type ModerationRole = "moderator" | "admin";
+
 export interface LiveRoomLifecycleStore {
   createClosedRoom(input: {
     createdBy: string;
@@ -25,6 +27,12 @@ export interface LiveRoomLifecycleStore {
   }): Promise<{ id: string; title: string }>;
   markRoomOpen(roomId: string, createdBy: string): Promise<void>;
   markRoomClosed(roomId: string, createdBy: string): Promise<void>;
+  moderationCloseRoom(input: {
+    roomId: string;
+    actorId: string;
+    actorRole: ModerationRole;
+    reason: string;
+  }): Promise<{ actionId: number }>;
 }
 
 export async function createBackendOwnedLiveRoom(
@@ -40,7 +48,6 @@ export async function createBackendOwnedLiveRoom(
   },
 ): Promise<{ roomId: string; status: "open" }> {
   const normalized = normalizeCreateInput(input);
-
   const room = await store.createClosedRoom(normalized);
 
   await ensureRealtimeKitMeetingProvisioned(mediaStore, controlPlane, {
@@ -52,11 +59,7 @@ export async function createBackendOwnedLiveRoom(
     await store.markRoomOpen(room.id, normalized.createdBy);
   } catch (error) {
     try {
-      await deactivateRealtimeKitMeetingForRoom(
-        mediaStore,
-        controlPlane,
-        room.id,
-      );
+      await deactivateRealtimeKitMeetingForRoom(mediaStore, controlPlane, room.id);
     } catch {
       throw new Error(
         "Room activation compensation failed; room remains closed and provider cleanup is required",
@@ -77,12 +80,46 @@ export async function closeBackendOwnedLiveRoom(
   const roomId = normalizeId(input.roomId, "Room ID");
   const createdBy = normalizeId(input.createdBy, "Creator ID");
 
-  // Close Ponder authority first. Even if provider deactivation fails, the
-  // media authorization/session routes reject closed rooms.
   await store.markRoomClosed(roomId, createdBy);
   await deactivateRealtimeKitMeetingForRoom(mediaStore, controlPlane, roomId);
 
   return { roomId, status: "closed" };
+}
+
+export async function moderationCloseBackendOwnedLiveRoom(
+  store: LiveRoomLifecycleStore,
+  mediaStore: RoomMediaProvisioningStore,
+  controlPlane: RealtimeKitMeetingControlPlane,
+  input: {
+    roomId: string;
+    actorId: string;
+    actorRole: ModerationRole;
+    reason: string;
+  },
+): Promise<{ roomId: string; status: "closed"; actionId: number }> {
+  const roomId = normalizeId(input.roomId, "Room ID");
+  const actorId = normalizeId(input.actorId, "Moderator ID");
+  const reason = input.reason.trim();
+
+  if (input.actorRole !== "moderator" && input.actorRole !== "admin") {
+    throw new Error("A moderator or admin role is required");
+  }
+  if (reason.length < 3 || reason.length > 500) {
+    throw new Error("Moderation reason must be between 3 and 500 characters");
+  }
+
+  // The store operation atomically closes Ponder authority and writes the
+  // durable moderation audit entry. Provider cleanup happens only afterward.
+  const { actionId } = await store.moderationCloseRoom({
+    roomId,
+    actorId,
+    actorRole: input.actorRole,
+    reason,
+  });
+
+  await deactivateRealtimeKitMeetingForRoom(mediaStore, controlPlane, roomId);
+
+  return { roomId, status: "closed", actionId };
 }
 
 export function createSupabaseLiveRoomLifecycleStore(
@@ -106,7 +143,6 @@ export function createSupabaseLiveRoomLifecycleStore(
       if (error || !data?.id || !data?.title) {
         throw new Error("Unable to create closed room lifecycle record");
       }
-
       return { id: String(data.id), title: String(data.title) };
     },
 
@@ -120,9 +156,7 @@ export function createSupabaseLiveRoomLifecycleStore(
         .select("id")
         .maybeSingle();
 
-      if (error || !data?.id) {
-        throw new Error("Unable to activate provisioned room");
-      }
+      if (error || !data?.id) throw new Error("Unable to activate provisioned room");
     },
 
     async markRoomClosed(roomId, createdBy) {
@@ -135,9 +169,21 @@ export function createSupabaseLiveRoomLifecycleStore(
         .select("id")
         .maybeSingle();
 
-      if (error || !data?.id) {
-        throw new Error("Unable to close owned live room");
+      if (error || !data?.id) throw new Error("Unable to close owned live room");
+    },
+
+    async moderationCloseRoom(input) {
+      const { data, error } = await adminClient.rpc("moderation_close_live_room", {
+        p_room_id: input.roomId,
+        p_actor_id: input.actorId,
+        p_actor_role: input.actorRole,
+        p_reason: input.reason,
+      });
+
+      if (error || !Number.isSafeInteger(data)) {
+        throw new Error("Unable to apply audited room moderation closure");
       }
+      return { actionId: data as number };
     },
   };
 }
@@ -161,24 +207,12 @@ function normalizeCreateInput(input: {
   if (description.length > 2000) {
     throw new Error("Room description must be at most 2000 characters");
   }
-  if (!SOCIAL_INTENTS.has(currentIntent)) {
-    throw new Error("Room intent is invalid");
-  }
-  if (
-    !Number.isSafeInteger(maxParticipants) ||
-    maxParticipants < 2 ||
-    maxParticipants > 24
-  ) {
+  if (!SOCIAL_INTENTS.has(currentIntent)) throw new Error("Room intent is invalid");
+  if (!Number.isSafeInteger(maxParticipants) || maxParticipants < 2 || maxParticipants > 24) {
     throw new Error("Room capacity must be between 2 and 24");
   }
 
-  return {
-    createdBy,
-    title,
-    description,
-    currentIntent,
-    maxParticipants,
-  };
+  return { createdBy, title, description, currentIntent, maxParticipants };
 }
 
 function normalizeId(value: string, label: string): string {
