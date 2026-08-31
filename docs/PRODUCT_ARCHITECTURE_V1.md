@@ -273,13 +273,14 @@ preview -> join -> active -> leave
 - [x] deterministic resonance scorer
 - [x] rank discovery candidates with scorer
 - [x] log privacy-safe discovery impressions
-- [ ] wire privacy-safe discovery outcomes to verified product transitions
-- [ ] add presence/availability signal
+- [x] wire connection and shared-room outcomes to verified product state
+- [x] add bounded, opt-in presence/availability signal
 
 ### Phase B — relationship continuity
 
 - [x] connection table foundation
-- [ ] connection request/accept UI
+- [x] connection request/accept transaction + profile continuation UI
+- [ ] incoming connection inbox
 - [ ] block semantics separated from normal connection status
 - [ ] direct-message conversation model
 - [ ] notification pipeline
@@ -341,6 +342,6 @@ Guardrails:
 
 ## Next implementation target
 
-Add presence/availability as a **bounded ranking signal** without allowing it to overwhelm intent and interest compatibility. Presence should answer "who can genuinely talk now?" while keeping the deterministic Resonance v1 score auditable.
+Build the **incoming connection inbox** and separate blocking from ordinary connection state. Then add durable moderation-report persistence so report outcomes can be verified rather than inferred.
 
-After that, wire outcome events into real profile, room, connection, block, and report transitions so telemetry reflects verified product actions rather than only impression exposure.
+For live rooms, wire the existing shared-room outcome verification into the production join flow once room creation/join UX is available.
