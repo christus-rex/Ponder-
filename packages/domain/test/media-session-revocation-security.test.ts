@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const migration = readFileSync(
-  "supabase/migrations/20260831061000_room_media_provider_sessions.sql",
+  "supabase/migrations/20260831093446_room_media_provider_sessions.sql",
   "utf8",
 );
 const mediaSessionRoute = readFileSync(

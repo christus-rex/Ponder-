@@ -20,6 +20,9 @@ jobs:
       NEXT_PUBLIC_SUPABASE_URL: https://wjqcjlcmgeujndxvtprj.supabase.co
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_T-ItORyhh_ptlqmofZXXgA_mvrx4ZgM
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PROJECT_REF: wjqcjlcmgeujndxvtprj
       NEXT_PUBLIC_ROOM_BRAIN_WS_URL: ${{ vars.NEXT_PUBLIC_ROOM_BRAIN_WS_URL || secrets.NEXT_PUBLIC_ROOM_BRAIN_WS_URL }}
       ROOM_BRAIN_ALLOWED_HOSTS: ${{ vars.ROOM_BRAIN_ALLOWED_HOSTS || secrets.ROOM_BRAIN_ALLOWED_HOSTS }}
       ROOM_BRAIN_AUTH_SECRET: ${{ secrets.ROOM_BRAIN_AUTH_SECRET }}
@@ -51,6 +54,9 @@ jobs:
             NEXT_PUBLIC_SUPABASE_URL
             NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
             SUPABASE_SERVICE_ROLE_KEY
+            SUPABASE_ACCESS_TOKEN
+            SUPABASE_DB_PASSWORD
+            SUPABASE_PROJECT_REF
             NEXT_PUBLIC_ROOM_BRAIN_WS_URL
             ROOM_BRAIN_ALLOWED_HOSTS
             ROOM_BRAIN_AUTH_SECRET
@@ -77,6 +83,21 @@ jobs:
             exit 1
           fi
 
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link production Supabase project for schema gate
+        run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
+
+      - name: Require current production migration history
+        shell: bash
+        run: |
+          set -euo pipefail
+          history_file="$RUNNER_TEMP/supabase-migration-history.txt"
+          supabase migration list 2>&1 | tee "$history_file"
+          node scripts/verify-supabase-migrations-current.mjs "$history_file"
+
       - name: Install application dependencies
         run: npm ci
 
@@ -96,7 +117,17 @@ jobs:
         run: |
           set -euo pipefail
           secrets_file="$RUNNER_TEMP/ponder-web-secrets.json"
-          jq -n             --arg SUPABASE_SERVICE_ROLE_KEY "$SUPABASE_SERVICE_ROLE_KEY"             --arg ROOM_BRAIN_AUTH_SECRET "$ROOM_BRAIN_AUTH_SECRET"             --arg MEDIA_SESSION_AUTH_SECRET "$MEDIA_SESSION_AUTH_SECRET"             --arg MEDIA_RECONCILIATION_SECRET "$MEDIA_RECONCILIATION_SECRET"             --arg REALTIMEKIT_APP_ID "$REALTIMEKIT_APP_ID"             --arg CLOUDFLARE_REALTIME_API_TOKEN "$CLOUDFLARE_REALTIME_API_TOKEN"             --arg REALTIMEKIT_SUBSCRIBE_ONLY_PRESET "$REALTIMEKIT_SUBSCRIBE_ONLY_PRESET"             --arg REALTIMEKIT_PUBLISHER_PRESET "$REALTIMEKIT_PUBLISHER_PRESET"             --arg OPENAI_API_KEY "$OPENAI_API_KEY"             '{
+          jq -n \
+            --arg SUPABASE_SERVICE_ROLE_KEY "$SUPABASE_SERVICE_ROLE_KEY" \
+            --arg ROOM_BRAIN_AUTH_SECRET "$ROOM_BRAIN_AUTH_SECRET" \
+            --arg MEDIA_SESSION_AUTH_SECRET "$MEDIA_SESSION_AUTH_SECRET" \
+            --arg MEDIA_RECONCILIATION_SECRET "$MEDIA_RECONCILIATION_SECRET" \
+            --arg REALTIMEKIT_APP_ID "$REALTIMEKIT_APP_ID" \
+            --arg CLOUDFLARE_REALTIME_API_TOKEN "$CLOUDFLARE_REALTIME_API_TOKEN" \
+            --arg REALTIMEKIT_SUBSCRIBE_ONLY_PRESET "$REALTIMEKIT_SUBSCRIBE_ONLY_PRESET" \
+            --arg REALTIMEKIT_PUBLISHER_PRESET "$REALTIMEKIT_PUBLISHER_PRESET" \
+            --arg OPENAI_API_KEY "$OPENAI_API_KEY" \
+            '{
               SUPABASE_SERVICE_ROLE_KEY: $SUPABASE_SERVICE_ROLE_KEY,
               ROOM_BRAIN_AUTH_SECRET: $ROOM_BRAIN_AUTH_SECRET,
               MEDIA_SESSION_AUTH_SECRET: $MEDIA_SESSION_AUTH_SECRET,

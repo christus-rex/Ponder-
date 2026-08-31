@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 const moderation = readFileSync(
-  'supabase/migrations/20260831055500_room_moderation_audit.sql',
+  'supabase/migrations/20260831093433_room_moderation_audit.sql',
   'utf8'
 );
 

@@ -3,35 +3,35 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 const foundation = readFileSync(
-  'supabase/migrations/20260830193000_identity_persistence.sql',
+  'supabase/migrations/20260830202042_identity_persistence.sql',
   'utf8'
 );
 const hardening = readFileSync(
-  'supabase/migrations/20260830202000_backend_hardening.sql',
+  'supabase/migrations/20260830202118_backend_hardening.sql',
   'utf8'
 );
 const onboarding = readFileSync(
-  'supabase/migrations/20260830202500_onboarding_preferences.sql',
+  'supabase/migrations/20260830202544_onboarding_preferences.sql',
   'utf8'
 );
 const telemetry = readFileSync(
-  'supabase/migrations/20260831011500_resonance_telemetry.sql',
+  'supabase/migrations/20260831011212_resonance_telemetry.sql',
   'utf8'
 );
 const roomLifecycle = readFileSync(
-  'supabase/migrations/20260831053500_server_owned_room_lifecycle.sql',
+  'supabase/migrations/20260831093422_server_owned_room_lifecycle.sql',
   'utf8'
 );
 const presenceOutcomes = readFileSync(
-  'supabase/migrations/20260831054500_presence_and_resonance_outcomes.sql',
+  'supabase/migrations/20260831054742_presence_and_resonance_outcomes.sql',
   'utf8'
 );
 const roomMembership = readFileSync(
-  'supabase/migrations/20260831094000_server_owned_room_membership.sql',
+  'supabase/migrations/20260831105812_server_owned_room_membership.sql',
   'utf8'
 );
 const dormantSurfaceFreeze = readFileSync(
-  'supabase/migrations/20260831100000_freeze_unused_client_surfaces.sql',
+  'supabase/migrations/20260831105828_freeze_unused_client_surfaces.sql',
   'utf8'
 );
 const sql =
