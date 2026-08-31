@@ -4,6 +4,11 @@ import { createClient } from "@/lib/supabase/server";
 import { exchangeTrustedMediaCapability } from "@/lib/realtime/server/mediaProviderExchange";
 import { RealtimeKitMediaProviderAdapter } from "@/lib/realtime/server/realtimeKitMediaProviderAdapter";
 import { resolveRealtimeKitMeetingId } from "@/lib/realtime/server/roomMediaProviderMapping";
+import {
+  createSupabaseRoomMediaProviderSessionStore,
+  replaceTrackedMediaProviderSession,
+} from "@/lib/realtime/server/roomMediaProviderSession";
+import { CloudflareRealtimeKitParticipantRevoker } from "@/lib/realtime/server/cloudflareRealtimeKitParticipantRevoker";
 
 export const dynamic = "force-dynamic";
 
@@ -74,14 +79,28 @@ export async function POST(
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
+  const resolveMeetingId = (authorizedRoomId: string) =>
+    resolveRealtimeKitMeetingId(admin, authorizedRoomId);
+
   const adapter = new RealtimeKitMediaProviderAdapter({
     accountId: config.accountId,
     appId: config.appId,
     apiToken: config.apiToken,
     subscribeOnlyPreset: config.subscribeOnlyPreset,
     publisherPreset: config.publisherPreset,
-    resolveMeetingId: (authorizedRoomId) =>
-      resolveRealtimeKitMeetingId(admin, authorizedRoomId),
+    resolveMeetingId,
+    ...(config.apiBase ? { apiBase: config.apiBase } : {}),
+    ...(config.allowedApiHosts.length > 0
+      ? { allowedApiHosts: config.allowedApiHosts }
+      : {}),
+  });
+
+  const sessionStore = createSupabaseRoomMediaProviderSessionStore(admin);
+  const participantRevoker = new CloudflareRealtimeKitParticipantRevoker({
+    accountId: config.accountId,
+    appId: config.appId,
+    apiToken: config.apiToken,
+    resolveMeetingId,
     ...(config.apiBase ? { apiBase: config.apiBase } : {}),
     ...(config.allowedApiHosts.length > 0
       ? { allowedApiHosts: config.allowedApiHosts }
@@ -100,9 +119,27 @@ export async function POST(
       config.mediaSessionSecret,
     );
 
-    return NextResponse.json(credentials, {
-      headers: { "Cache-Control": "no-store" },
-    });
+    await replaceTrackedMediaProviderSession(
+      sessionStore,
+      participantRevoker,
+      {
+        roomId,
+        userId: userData.user.id,
+        providerParticipantId: credentials.providerParticipantId,
+        authoritySequence: credentials.authoritySequence,
+        role: credentials.verifiedRole,
+        expiresAt: credentials.expiresAt,
+      },
+    );
+
+    return NextResponse.json(
+      {
+        provider: credentials.provider,
+        participantToken: credentials.participantToken,
+        expiresAt: credentials.expiresAt,
+      },
+      { headers: { "Cache-Control": "no-store" } },
+    );
   } catch {
     // Do not expose capability, provider, database, or credential-validation details.
     return NextResponse.json(
