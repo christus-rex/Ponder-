@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { MediaRole } from "../../../packages/domain/src/media";
 
 const MEDIA_REVOCATION_MAX_ATTEMPTS = 3;
+const MEDIA_RECONCILIATION_BATCH_LIMIT = 16;
 
 export interface TrackedMediaProviderSession {
   roomId: string;
@@ -31,10 +32,24 @@ export interface RoomMediaProviderSessionStore {
     userId: string,
     providerParticipantId: string,
   ): Promise<void>;
+  requestReconciliation?(
+    roomId: string,
+    userId: string,
+    providerParticipantId: string,
+  ): Promise<void>;
+  claimReconciliationBatch?(
+    limit: number,
+  ): Promise<TrackedMediaProviderSession[]>;
 }
 
 export interface MediaProviderParticipantRevoker {
   revokeParticipant(roomId: string, providerParticipantId: string): Promise<void>;
+}
+
+export interface MediaRevocationReconciliationResult {
+  claimed: number;
+  revoked: number;
+  failed: number;
 }
 
 /**
@@ -113,6 +128,48 @@ export async function revokeTrackedMediaSessionsForRoom(
   return revokeTrackedSessionsBestEffort(store, revoker, sessions);
 }
 
+export async function reconcileTrackedMediaSessions(
+  store: RoomMediaProviderSessionStore,
+  revoker: MediaProviderParticipantRevoker,
+  limit = MEDIA_RECONCILIATION_BATCH_LIMIT,
+): Promise<MediaRevocationReconciliationResult> {
+  if (!Number.isSafeInteger(limit) || limit < 1 || limit > 32) {
+    throw new Error("Media revocation reconciliation limit is invalid");
+  }
+  if (!store.claimReconciliationBatch) {
+    throw new Error("Media revocation reconciliation store is not configured");
+  }
+
+  const sessions = await store.claimReconciliationBatch(limit);
+  let revoked = 0;
+  let failed = 0;
+
+  for (const session of sessions) {
+    try {
+      await retryBounded(() =>
+        revoker.revokeParticipant(
+          session.roomId,
+          session.providerParticipantId,
+        ),
+      );
+      await retryBounded(() =>
+        store.markRevoked(
+          session.roomId,
+          session.userId,
+          session.providerParticipantId,
+        ),
+      );
+      revoked += 1;
+    } catch {
+      // The claimed row remains unrevoked. Its lease/backoff makes it eligible
+      // for a later bounded reconciliation pass without exposing the handle.
+      failed += 1;
+    }
+  }
+
+  return { claimed: sessions.length, revoked, failed };
+}
+
 async function revokeTrackedSessionsBestEffort(
   store: RoomMediaProviderSessionStore,
   revoker: MediaProviderParticipantRevoker,
@@ -138,6 +195,21 @@ async function revokeTrackedSessionsBestEffort(
       );
       revoked += 1;
     } catch (error) {
+      try {
+        await store.requestReconciliation?.(
+          session.roomId,
+          session.userId,
+          session.providerParticipantId,
+        );
+      } catch (reconciliationError) {
+        failures.push(
+          new AggregateError(
+            [error, reconciliationError],
+            "Provider media revocation failed and durable reconciliation could not be scheduled",
+          ),
+        );
+        continue;
+      }
       failures.push(error);
     }
   }
@@ -262,6 +334,8 @@ export function createSupabaseRoomMediaProviderSessionStore(
         .update({
           revoked_at: new Date().toISOString(),
           is_current: false,
+          reconciliation_lease_until: null,
+          next_reconciliation_at: null,
         })
         .eq("room_id", roomId)
         .eq("user_id", userId)
@@ -289,6 +363,36 @@ export function createSupabaseRoomMediaProviderSessionStore(
       if (existing && existing.revoked_at === null) {
         throw new Error("Provider media session remained active after revocation");
       }
+    },
+
+    async requestReconciliation(roomId, userId, providerParticipantId) {
+      const now = new Date().toISOString();
+      const { error } = await adminClient
+        .from("room_media_provider_sessions")
+        .update({
+          reconciliation_requested_at: now,
+          next_reconciliation_at: now,
+          reconciliation_lease_until: null,
+        })
+        .eq("room_id", roomId)
+        .eq("user_id", userId)
+        .eq("provider_participant_id", providerParticipantId)
+        .is("revoked_at", null);
+
+      if (error) {
+        throw new Error("Unable to schedule provider media reconciliation");
+      }
+    },
+
+    async claimReconciliationBatch(limit) {
+      const { data, error } = await adminClient.rpc(
+        "claim_room_media_revocations",
+        { p_limit: limit, p_lease_seconds: 60 },
+      );
+      if (error || !Array.isArray(data)) {
+        throw new Error("Unable to claim provider media reconciliation batch");
+      }
+      return data.map((row) => decodeSession(row as Record<string, unknown>));
     },
   };
 }
