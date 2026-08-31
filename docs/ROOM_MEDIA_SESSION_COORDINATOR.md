@@ -34,8 +34,40 @@ state after every asynchronous completion. A late authorization, join,
 microphone, or camera completion therefore cannot restore an obsolete role or
 publish through a desynchronized session.
 
-The injected `requestJoinAuthorization` function is the server-backed boundary
-that obtains SFU grants. Adapters must independently enforce their server-side
-token grants; the coordinator validates the returned binding but does not mint
-or expand provider permissions. Provider-specific camera track handling remains
-inside the `RealtimeMediaProvider` adapter.
+## Media capability issuance
+
+The browser requests a media authorization from the same-origin Next.js backend
+and sends only the Room Brain `authoritySequence`. It never supplies a trusted
+role or user identifier.
+
+The backend authenticates the current account, verifies active room access, then
+uses a short-lived Room Brain credential to call the Room Brain Worker. The
+Durable Object derives the participant role from its current authoritative room
+state and requires the requested sequence to exactly match the current room
+sequence. Only then does it issue a 30-second media capability token bound to:
+
+- room ID
+- user ID
+- current Room Brain role
+- exact authority sequence
+- expiry
+
+Media capabilities use `MEDIA_SESSION_AUTH_SECRET`, separate from
+`ROOM_BRAIN_AUTH_SECRET`, so a leaked or incorrectly handled provider capability
+cannot be replayed as a Room Brain connection ticket.
+
+```text
+browser
+  -> POST /api/rooms/:roomId/media-authorization { authoritySequence }
+  -> authenticated Next.js backend
+  -> Room Brain Worker /rooms/:roomId/media-grant
+  -> Durable Object checks live participant + exact sequence
+  -> short-lived signed media capability
+```
+
+The injected `requestJoinAuthorization` function uses this server-backed
+boundary. The capability is not permission for the client to mint or widen SFU
+privileges. A provider adapter or trusted SFU exchange service must verify the
+media capability and independently mint the provider-specific join credential.
+Provider-specific camera track handling remains inside the
+`RealtimeMediaProvider` adapter.
