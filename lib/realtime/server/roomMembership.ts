@@ -19,6 +19,10 @@ export interface RoomMembershipAdminStore {
     roomId: string,
     userId: string,
   ): Promise<RoomMembershipEntryState>;
+  markMembershipLeft(
+    roomId: string,
+    userId: string,
+  ): Promise<RoomMembershipEntryState | "missing">;
   hostEjectMember(input: {
     roomId: string;
     targetUserId: string;
@@ -116,6 +120,32 @@ export function createSupabaseRoomMembershipAdminStore(
         return "active";
       }
       throw new Error("Room membership could not be reactivated safely");
+    },
+
+    async markMembershipLeft(roomId, userId) {
+      let membership = await getMembership(roomId, userId);
+      if (!membership) return "missing";
+      if (membership.entryState === "ejected") return "ejected";
+      if (membership.leftAt !== null) return "active";
+
+      const { data, error } = await adminClient
+        .from("room_members")
+        .update({ left_at: new Date().toISOString() })
+        .eq("room_id", roomId)
+        .eq("user_id", userId)
+        .eq("entry_state", "active")
+        .is("left_at", null)
+        .select("entry_state")
+        .maybeSingle();
+
+      if (error) {
+        throw new Error("Unable to leave room membership");
+      }
+      if (data?.entry_state === "active") return "active";
+
+      membership = await getMembership(roomId, userId);
+      if (!membership) return "missing";
+      return membership.entryState;
     },
 
     async hostEjectMember(input) {
