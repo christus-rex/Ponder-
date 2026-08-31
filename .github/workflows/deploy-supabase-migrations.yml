@@ -1,0 +1,82 @@
+name: Plan or Apply Ponder+ Supabase Migrations
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: "Apply pending migrations after the dry-run plan succeeds"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ponder-plus-production-database
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PROJECT_REF: wjqcjlcmgeujndxvtprj
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Validate database deployment credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=()
+          for name in SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD SUPABASE_PROJECT_REF; do
+            [[ -z "${!name:-}" ]] && missing+=("$name")
+          done
+          if (( ${#missing[@]} > 0 )); then
+            printf '::error title=Supabase migration plan blocked::Missing required configuration: %s\n' "${missing[*]}"
+            exit 1
+          fi
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link production Supabase project
+        run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
+
+      - name: Compare local and remote migration history
+        run: supabase migration list
+
+      - name: Dry-run pending production migrations
+        run: supabase db push --linked --dry-run
+
+  apply:
+    if: ${{ inputs.apply == true }}
+    needs: plan
+    environment: production-database
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PROJECT_REF: wjqcjlcmgeujndxvtprj
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link production Supabase project
+        run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
+
+      - name: Reconfirm migration plan immediately before apply
+        run: supabase db push --linked --dry-run
+
+      - name: Apply pending migrations
+        run: supabase db push --linked
