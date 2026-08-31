@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   requestAuthoritativeMediaGrant,
   requestAuthoritativeSpeakerDemotion,
+  requestAuthoritativeParticipantEjection,
   RoomBrainServerRequestError,
 } from "./roomBrainServerClient";
 
@@ -122,5 +123,57 @@ describe("requestAuthoritativeSpeakerDemotion", () => {
       action: "demote_speaker",
       targetUserId: "speaker-1",
     });
+  });
+});
+
+
+describe("requestAuthoritativeParticipantEjection", () => {
+  it("retries once against the authoritative snapshot sequence", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    const bodies: Array<Record<string, unknown>> = [];
+    const fetchImpl = vi.fn<typeof fetch>().mockImplementation(
+      async (_input, init) => {
+        bodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+        if (bodies.length === 1) {
+          return Response.json(
+            { snapshot: { sequence: 18 } },
+            { status: 409 },
+          );
+        }
+        return Response.json({
+          sequence: 19,
+          targetUserId: "viewer-1",
+          ejected: true,
+          duplicate: false,
+        });
+      },
+    );
+
+    const result = await requestAuthoritativeParticipantEjection(
+      {
+        websocketUrl: "ws://localhost:8787",
+        roomBrainSecret: secret,
+        fetchImpl,
+      },
+      {
+        roomId: "room-1",
+        actorUserId: "host-1",
+        actorRole: "host",
+        targetUserId: "viewer-1",
+        expectedSequence: 17,
+      },
+    );
+
+    expect(result).toEqual({
+      sequence: 19,
+      targetUserId: "viewer-1",
+      ejected: true,
+      duplicate: false,
+    });
+    expect(bodies).toHaveLength(2);
+    expect(bodies[0]?.expectedSequence).toBe(17);
+    expect(bodies[1]?.expectedSequence).toBe(18);
+    expect(bodies[0]?.action).toBe("eject_participant");
+    expect(bodies[1]?.action).toBe("eject_participant");
   });
 });
