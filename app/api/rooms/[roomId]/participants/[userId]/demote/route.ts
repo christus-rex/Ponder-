@@ -7,6 +7,7 @@ import {
 } from "@/lib/realtime/server/roomBrainServerClient";
 import { createLiveRoomServerRuntime } from "@/lib/realtime/server/liveRoomServerRuntime";
 import { revokeTrackedMediaSessionsForUser } from "@/lib/realtime/server/roomMediaProviderSession";
+import { createRoomMembershipAdminStoreFromEnv } from "@/lib/realtime/server/roomMembership";
 
 export const dynamic = "force-dynamic";
 
@@ -77,21 +78,28 @@ export async function POST(
     );
   }
 
-  const { data: membership, error: membershipError } = await supabase
-    .from("room_members")
-    .select("room_id")
-    .eq("room_id", roomId)
-    .eq("user_id", targetUserId)
-    .is("left_at", null)
-    .maybeSingle();
+  const membershipStore = createRoomMembershipAdminStoreFromEnv();
+  if (!membershipStore) {
+    return NextResponse.json(
+      { error: "Room membership service is not configured." },
+      { status: 503 },
+    );
+  }
 
-  if (membershipError) {
+  let membership;
+  try {
+    membership = await membershipStore.getMembership(roomId, targetUserId);
+  } catch {
     return NextResponse.json(
       { error: "Unable to verify target room membership." },
       { status: 503 },
     );
   }
-  if (!membership) {
+  if (
+    !membership ||
+    membership.entryState !== "active" ||
+    membership.leftAt !== null
+  ) {
     return NextResponse.json(
       { error: "Target is not an active room member." },
       { status: 404 },
