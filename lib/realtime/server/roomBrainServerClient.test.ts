@@ -72,7 +72,7 @@ describe("requestAuthoritativeMediaGrant", () => {
           authoritySequence: 11,
         },
       ),
-    ).rejects.toMatchObject<Partial<RoomBrainServerRequestError>>({
+    ).rejects.toMatchObject({
       status: 409,
     });
   });
