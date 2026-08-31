@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { roomBrainMediaGrantUrl } from "@/lib/realtime/server/roomBrainServerHostPolicy";
 import {
   createRoomBrainToken,
   type MediaJoinAuthorization,
@@ -93,6 +94,20 @@ export async function POST(
     );
   }
 
+  let grantUrl: string;
+  try {
+    grantUrl = roomBrainMediaGrantUrl(
+      websocketUrl,
+      roomId,
+      (process.env.ROOM_BRAIN_ALLOWED_HOSTS ?? "").split(","),
+    );
+  } catch {
+    return NextResponse.json(
+      { error: "Room media authorization is not configured." },
+      { status: 503 }
+    );
+  }
+
   const now = Math.floor(Date.now() / 1000);
   const roomBrainToken = await createRoomBrainToken(
     {
@@ -108,7 +123,7 @@ export async function POST(
 
   let workerResponse: Response;
   try {
-    workerResponse = await fetch(mediaGrantUrl(websocketUrl, roomId), {
+    workerResponse = await fetch(grantUrl, {
       method: "POST",
       headers: {
         Accept: "application/json",
@@ -171,17 +186,4 @@ async function readAuthoritySequence(request: Request): Promise<number | null> {
   return Number.isSafeInteger(value) && (value as number) >= 0
     ? (value as number)
     : null;
-}
-
-function mediaGrantUrl(websocketBase: string, roomId: string): string {
-  const url = new URL(websocketBase);
-  if (url.protocol === "wss:") url.protocol = "https:";
-  else if (url.protocol === "ws:") url.protocol = "http:";
-  else if (url.protocol !== "https:" && url.protocol !== "http:") {
-    throw new Error("Unsupported Room Brain URL protocol");
-  }
-  url.pathname = `${url.pathname.replace(/\/$/, "")}/rooms/${encodeURIComponent(roomId)}/media-grant`;
-  url.search = "";
-  url.hash = "";
-  return url.toString();
 }
