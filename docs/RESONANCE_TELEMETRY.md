@@ -73,9 +73,9 @@ Writes go through two narrow RPCs:
 
 The database derives `viewer_id` from `auth.uid()`. Callers cannot submit another viewer id.
 
-Impression batches are capped at 12 candidates, duplicate candidates are rejected, scores are bounded, reason codes are allow-listed, candidates must be active/onboarded, and rapid duplicate batches are collapsed for five seconds.
+Impression batches are capped at 12 candidates, duplicate candidates are rejected, scores are bounded, reason codes are allow-listed, candidates must be active/onboarded.
 
-Outcome writes require ownership of the referenced impression and are idempotent per impression/outcome/room tuple.
+Outcome writes address an impression by batch id + candidate id, require ownership of that impression, and are idempotent per impression/outcome/room tuple.
 
 ## Data-quality caveat
 
