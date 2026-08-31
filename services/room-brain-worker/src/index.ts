@@ -289,7 +289,7 @@ export class RoomBrainDurableObject extends DurableObject<Env> {
       !/^[A-Za-z0-9_-]{8,80}$/.test(commandId) ||
       !Number.isSafeInteger(expectedSequence) ||
       (expectedSequence as number) < 0 ||
-      action !== "demote_speaker" ||
+      (action !== "demote_speaker" && action !== "eject_participant") ||
       typeof targetUserId !== "string" ||
       targetUserId.length < 1 ||
       targetUserId.length > 128
@@ -298,17 +298,46 @@ export class RoomBrainDurableObject extends DurableObject<Env> {
     }
 
     const protocol = await this.loadProtocol();
+
+    // Durable membership is already denied before the backend requests an
+    // ejection. If the target has already left Room Brain, closing any lingering
+    // sockets is sufficient and the operation converges idempotently.
+    if (
+      action === "eject_participant" &&
+      !protocol.room.participants[targetUserId]
+    ) {
+      this.closeParticipantSockets(targetUserId);
+      return Response.json(
+        {
+          sequence: protocol.room.sequence,
+          targetUserId,
+          ejected: true,
+          duplicate: true,
+        },
+        { headers: { "Cache-Control": "no-store" } },
+      );
+    }
+
+    const command =
+      action === "demote_speaker"
+        ? {
+            type: "demote_speaker" as const,
+            actorUserId: attachment.userId,
+            targetUserId,
+          }
+        : {
+            type: "eject_participant" as const,
+            actorUserId: attachment.userId,
+            targetUserId,
+          };
+
     let applied;
     try {
       applied = applyRoomBrainEnvelope(protocol, {
         version: 1,
         commandId,
         expectedSequence: expectedSequence as number,
-        command: {
-          type: "demote_speaker",
-          actorUserId: attachment.userId,
-          targetUserId,
-        },
+        command,
       });
     } catch {
       return new Response("Moderation action rejected by authoritative state", {
@@ -318,6 +347,19 @@ export class RoomBrainDurableObject extends DurableObject<Env> {
 
     if (!applied.accepted) {
       if (applied.duplicate) {
+        if (action === "eject_participant") {
+          this.closeParticipantSockets(targetUserId);
+          return Response.json(
+            {
+              sequence: applied.protocol.room.sequence,
+              targetUserId,
+              ejected: true,
+              duplicate: true,
+            },
+            { headers: { "Cache-Control": "no-store" } },
+          );
+        }
+
         return Response.json(
           {
             sequence: applied.protocol.room.sequence,
@@ -338,17 +380,25 @@ export class RoomBrainDurableObject extends DurableObject<Env> {
     }
 
     await this.ctx.storage.put(PROTOCOL_STORAGE_KEY, applied.protocol);
-    const broadcast = {
-      version: 1 as const,
-      type: "state_changed" as const,
+    this.broadcast({
+      version: 1,
+      type: "state_changed",
       sequence: applied.protocol.room.sequence,
-      command: {
-        type: "demote_speaker" as const,
-        actorUserId: attachment.userId,
-        targetUserId,
-      },
-    };
-    this.broadcast(broadcast);
+      command,
+    });
+
+    if (action === "eject_participant") {
+      this.closeParticipantSockets(targetUserId);
+      return Response.json(
+        {
+          sequence: applied.protocol.room.sequence,
+          targetUserId,
+          ejected: true,
+          duplicate: false,
+        },
+        { headers: { "Cache-Control": "no-store" } },
+      );
+    }
 
     return Response.json(
       {
@@ -359,6 +409,17 @@ export class RoomBrainDurableObject extends DurableObject<Env> {
       },
       { headers: { "Cache-Control": "no-store" } },
     );
+  }
+
+  private closeParticipantSockets(userId: string): void {
+    for (const socket of this.ctx.getWebSockets()) {
+      const connection = socket.deserializeAttachment() as
+        | ConnectionAttachment
+        | null;
+      if (connection?.userId === userId) {
+        socket.close(4003, "Ejected from room");
+      }
+    }
   }
 
   private async issueMediaGrant(request: Request): Promise<Response> {
