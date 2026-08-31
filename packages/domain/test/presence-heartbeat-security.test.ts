@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 const migration = readFileSync(
-  'supabase/migrations/20260831150500_rate_limit_presence_heartbeats.sql',
+  'supabase/migrations/20260831150426_rate_limit_presence_heartbeats.sql',
   'utf8'
 );
 
