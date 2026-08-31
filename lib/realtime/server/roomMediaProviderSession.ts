@@ -97,20 +97,7 @@ export function createSupabaseRoomMediaProviderSessionStore(
 ): RoomMediaProviderSessionStore {
   return {
     async getActiveUserSession(roomId, userId) {
-      const { data, error } = await adminClient
-        .from("room_media_provider_sessions")
-        .select(
-          "room_id,user_id,provider_participant_id,authority_sequence,role,expires_at",
-        )
-        .eq("room_id", roomId)
-        .eq("user_id", userId)
-        .is("revoked_at", null)
-        .maybeSingle();
-
-      if (error) {
-        throw new Error("Unable to read active provider media session");
-      }
-      return data ? decodeSession(data) : null;
+      return readActiveUserSession(adminClient, roomId, userId);
     },
 
     async upsertActiveSession(session) {
@@ -175,7 +162,7 @@ export function createSupabaseRoomMediaProviderSessionStore(
       if (!data?.room_id) {
         // A repeated cleanup may encounter an already-revoked row. Re-read the
         // active session so stale cleanup cannot mark a newer replacement.
-        const active = await this.getActiveUserSession(roomId, userId);
+        const active = await readActiveUserSession(adminClient, roomId, userId);
         if (
           active &&
           active.providerParticipantId !== providerParticipantId
@@ -185,6 +172,27 @@ export function createSupabaseRoomMediaProviderSessionStore(
       }
     },
   };
+}
+
+async function readActiveUserSession(
+  adminClient: SupabaseClient,
+  roomId: string,
+  userId: string,
+): Promise<TrackedMediaProviderSession | null> {
+  const { data, error } = await adminClient
+    .from("room_media_provider_sessions")
+    .select(
+      "room_id,user_id,provider_participant_id,authority_sequence,role,expires_at",
+    )
+    .eq("room_id", roomId)
+    .eq("user_id", userId)
+    .is("revoked_at", null)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error("Unable to read active provider media session");
+  }
+  return data ? decodeSession(data) : null;
 }
 
 async function compensateNewParticipant(
