@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/auth/actions";
 import { PresenceHeartbeat } from "@/components/PresenceHeartbeat";
+import { CreateRoomPanel } from "@/components/CreateRoomPanel";
 import {
   rankResonance,
   scoreIntentAffinity,
@@ -161,8 +162,13 @@ export default async function DiscoverPage() {
       </section>
 
       <section className="section" style={{ paddingBottom: 90 }}>
-        <p className="sectionLabel">ROOMS</p>
-        <h2>Small spaces with an explicit purpose.</h2>
+        <div className="sectionHeading">
+          <div>
+            <p className="sectionLabel">ROOMS</p>
+            <h2>Small spaces with an explicit purpose.</h2>
+          </div>
+          <CreateRoomPanel />
+        </div>
         <div className="roomGrid" style={{ marginTop: 28 }}>
           {rankedRooms.map(({ room, intentFit }) => (
             <article className="roomCard" key={room.id}>
@@ -172,6 +178,9 @@ export default async function DiscoverPage() {
               </span>
               <h3>{room.title}</h3>
               <p>{room.description}</p>
+              <a className="roomButton" href={`/rooms/${room.id}`}>
+                Enter room
+              </a>
             </article>
           ))}
         </div>
