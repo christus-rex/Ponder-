@@ -1,0 +1,49 @@
+name: Reconcile provider media revocations
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ponder-plus-media-reconciliation
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Run bounded reconciliation pass
+        shell: bash
+        env:
+          PONDER_PRODUCTION_URL: ${{ secrets.PONDER_PRODUCTION_URL }}
+          MEDIA_RECONCILIATION_SECRET: ${{ secrets.MEDIA_RECONCILIATION_SECRET }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${PONDER_PRODUCTION_URL:-}" || -z "${MEDIA_RECONCILIATION_SECRET:-}" ]]; then
+            echo "::error title=Media reconciliation blocked::PONDER_PRODUCTION_URL and MEDIA_RECONCILIATION_SECRET must be configured."
+            exit 1
+          fi
+
+          endpoint="${PONDER_PRODUCTION_URL%/}/api/internal/media-reconciliation"
+          response_file="$(mktemp)"
+          status="$(curl --silent --show-error \
+            --output "$response_file" \
+            --write-out "%{http_code}" \
+            --request POST \
+            --header "Authorization: Bearer ${MEDIA_RECONCILIATION_SECRET}" \
+            --header "Content-Type: application/json" \
+            --max-time 60 \
+            "$endpoint")"
+
+          if [[ "$status" != "200" ]]; then
+            echo "::error title=Media reconciliation failed::Backend returned HTTP ${status}."
+            exit 1
+          fi
+
+          echo "Media revocation reconciliation completed successfully." >> "$GITHUB_STEP_SUMMARY"
