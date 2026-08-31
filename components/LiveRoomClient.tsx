@@ -248,6 +248,36 @@ export function LiveRoomClient({
     }
   }
 
+  async function leaveRoom() {
+    if (isHost) {
+      window.location.assign("/discover");
+      return;
+    }
+
+    setBusyAction("leave");
+    try {
+      const response = await fetch(
+        `/api/rooms/${encodeURIComponent(roomId)}/leave`,
+        {
+          method: "POST",
+          headers: { Accept: "application/json" },
+          cache: "no-store",
+        },
+      );
+      const payload = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        left?: boolean;
+      };
+      if (!response.ok && !payload.left) {
+        throw new Error(payload.error ?? "Unable to leave room.");
+      }
+      window.location.assign("/discover");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Unable to leave room.");
+      setBusyAction("");
+    }
+  }
+
   async function closeRoom() {
     if (!isHost) return;
     setBusyAction("close");
@@ -279,10 +309,15 @@ export function LiveRoomClient({
   return (
     <main className="shell liveRoomShell">
       <nav className="nav">
-        <a className="brand" href="/discover">
+        <button
+          className="brand liveRoomBackButton"
+          type="button"
+          onClick={() => void leaveRoom()}
+          disabled={busyAction === "leave"}
+        >
           <span className="brandMark">P+</span>
-          <span>Back to discover</span>
-        </a>
+          <span>{busyAction === "leave" ? "Leaving…" : "Back to discover"}</span>
+        </button>
         <span className="statusPill">
           {syncState.status === "synchronized"
             ? `Room Brain · #${room?.sequence ?? 0}`
