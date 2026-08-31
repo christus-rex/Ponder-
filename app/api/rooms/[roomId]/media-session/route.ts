@@ -201,6 +201,61 @@ export async function POST(
       },
     );
 
+    try {
+      const finalAuthorization = await requestAuthoritativeMediaGrant(
+        {
+          websocketUrl: config.roomBrainWebsocketUrl,
+          roomBrainSecret: config.roomBrainSecret,
+          allowedHosts: config.roomBrainAllowedHosts,
+        },
+        {
+          roomId,
+          userId: userData.user.id,
+          baselineRole:
+            room.created_by === userData.user.id ? "host" : "viewer",
+          authoritySequence: input.authoritySequence,
+        },
+      );
+
+      if (finalAuthorization.role !== credentials.verifiedRole) {
+        throw new RoomBrainServerRequestError(
+          "Room media authority changed during provider exchange",
+          409,
+        );
+      }
+    } catch (error) {
+      try {
+        await participantRevoker.revokeParticipant(
+          roomId,
+          credentials.providerParticipantId,
+        );
+        await sessionStore.markRevoked(
+          roomId,
+          userData.user.id,
+          credentials.providerParticipantId,
+        );
+      } catch {
+        return NextResponse.json(
+          {
+            error:
+              "Media authority changed during provider exchange and cleanup requires reconciliation.",
+          },
+          { status: 503 },
+        );
+      }
+
+      if (error instanceof RoomBrainServerRequestError && error.status === 409) {
+        return NextResponse.json(
+          { error: "Room state changed during media setup. Resync required." },
+          { status: 409 },
+        );
+      }
+      return NextResponse.json(
+        { error: "Room Brain media authority changed during media setup." },
+        { status: 503 },
+      );
+    }
+
     const publicCredentials = {
       provider: credentials.provider,
       participantToken: credentials.participantToken,
