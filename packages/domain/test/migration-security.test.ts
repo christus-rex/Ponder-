@@ -212,3 +212,15 @@ test('resonance telemetry stores structured signals rather than conversation con
     /\b(message|body|caption|transcript|audio|video|bio|interests|search_text)\b/i
   );
 });
+
+
+test('discoverability helper remains a valid security-definer SQL function', () => {
+  assert.match(
+    telemetry,
+    /create or replace function public\.profile_is_discoverable\(target_user_id uuid\)[\s\S]*security definer[\s\S]*as \$\$[\s\S]*\$\$;/i
+  );
+  assert.match(
+    telemetry,
+    /active profiles are discoverable[\s\S]*profile_is_discoverable\(id\)/i
+  );
+});
