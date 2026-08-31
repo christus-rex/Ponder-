@@ -65,9 +65,10 @@ export async function POST(
   } else {
     const { data: membership, error: membershipError } = await supabase
       .from("room_members")
-      .select("room_id")
+      .select("room_id,entry_state")
       .eq("room_id", roomId)
       .eq("user_id", userData.user.id)
+      .eq("entry_state", "active")
       .is("left_at", null)
       .maybeSingle();
 
