@@ -20,7 +20,7 @@
     "typecheck:domain": "tsc -p packages/domain/tsconfig.json --noEmit",
     "typecheck:mobile": "tsc -p apps/mobile/tsconfig.json --noEmit",
     "test": "npm run test:web && npm run test:translator && npm run test:domain",
-    "test:web": "vitest run lib/crypto/ledger.test.ts lib/auth/age.test.ts lib/auth/routeAccess.test.ts lib/translation/config.test.ts lib/realtime/roomBrainClient.test.ts lib/realtime/roomMediaAuthorization.test.ts lib/realtime/roomMediaSessionCoordinator.test.ts lib/realtime/server/mediaProviderExchange.test.ts lib/realtime/server/realtimeKitMediaProviderAdapter.test.ts lib/realtime/server/realtimeKitMediaProviderHostPolicy.test.ts lib/realtime/server/roomMediaProviderMapping.test.ts lib/realtime/server/roomMediaProvisioning.test.ts lib/realtime/server/cloudflareRealtimeKitMeetingControlPlane.test.ts",
+    "test:web": "vitest run lib/crypto/ledger.test.ts lib/auth/age.test.ts lib/auth/routeAccess.test.ts lib/translation/config.test.ts lib/realtime/roomBrainClient.test.ts lib/realtime/roomMediaAuthorization.test.ts lib/realtime/roomMediaSessionCoordinator.test.ts lib/realtime/server/mediaProviderExchange.test.ts lib/realtime/server/realtimeKitMediaProviderAdapter.test.ts lib/realtime/server/realtimeKitMediaProviderHostPolicy.test.ts lib/realtime/server/roomMediaProviderMapping.test.ts lib/realtime/server/roomMediaProvisioning.test.ts lib/realtime/server/cloudflareRealtimeKitMeetingControlPlane.test.ts lib/realtime/server/liveRoomLifecycle.test.ts",
     "test:translator": "node --test test/*.test.mjs",
     "test:domain": "node --experimental-strip-types --test packages/domain/test/*.test.ts",
     "audit:ci": "npm audit --audit-level=high",
