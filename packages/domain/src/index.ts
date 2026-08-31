@@ -1,6 +1,7 @@
 export * from './models.ts';
 export * from './economy.ts';
 export * from './media.ts';
+export * from './media-session-token.ts';
 export * from './onboarding.ts';
 export * from './matching.ts';
 export * from './room-brain.ts';
