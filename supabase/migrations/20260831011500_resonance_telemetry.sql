@@ -1,5 +1,36 @@
 begin;
 
+create or replace function public.profile_is_discoverable(target_user_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $
+  select exists (
+    select 1
+    from public.profiles p
+    join public.user_access ua on ua.id = p.id
+    where p.id = target_user_id
+      and p.onboarding_completed_at is not null
+      and ua.account_status = 'active'::public.account_status
+  );
+$;
+
+revoke execute on function public.profile_is_discoverable(uuid) from public, anon;
+grant execute on function public.profile_is_discoverable(uuid) to authenticated;
+
+drop policy if exists "active profiles are discoverable" on public.profiles;
+create policy "active profiles are discoverable"
+on public.profiles for select to authenticated
+using (
+  (select public.current_user_is_active())
+  and (
+    id = (select auth.uid())
+    or (select public.profile_is_discoverable(id))
+  )
+);
+
 create type public.resonance_reason_code as enum (
   'same_intent',
   'complementary_intent',
@@ -108,7 +139,7 @@ begin
 
   if exists (
     select 1
-    from unnest(p_candidate_ids) as candidate_id
+    from unnest(p_candidate_ids) as candidates(candidate_id)
     group by candidate_id
     having count(*) > 1
   ) then
@@ -121,7 +152,7 @@ begin
 
   if exists (
     select 1
-    from unnest(p_scores) as score
+    from unnest(p_scores) as scores(score)
     where score < 0 or score > 100
   ) then
     raise exception 'Resonance score must be between 0 and 100';
@@ -129,7 +160,7 @@ begin
 
   if exists (
     select 1
-    from unnest(p_reason_codes) as reason_code
+    from unnest(p_reason_codes) as reasons(reason_code)
     where reason_code not in (
       'same_intent',
       'complementary_intent',
@@ -142,12 +173,8 @@ begin
 
   if exists (
     select 1
-    from unnest(p_candidate_ids) as candidate_id
-    left join public.profiles p on p.id = candidate_id
-    left join public.user_access ua on ua.id = candidate_id
-    where p.id is null
-      or p.onboarding_completed_at is null
-      or ua.account_status is distinct from 'active'::public.account_status
+    from unnest(p_candidate_ids) as candidates(candidate_id)
+    where not public.profile_is_discoverable(candidate_id)
   ) then
     raise exception 'All discovery candidates must be active, onboarded profiles';
   end if;
@@ -168,10 +195,10 @@ begin
     batch_id,
     viewer,
     candidate_id,
-    ordinality::smallint,
-    p_scores[ordinality]::smallint,
-    p_reason_codes[ordinality]::public.resonance_reason_code
-  from unnest(p_candidate_ids) with ordinality as ranked(candidate_id, ordinality);
+    rank_position::smallint,
+    p_scores[rank_position::integer]::smallint,
+    p_reason_codes[rank_position::integer]::public.resonance_reason_code
+  from unnest(p_candidate_ids) with ordinality as ranked(candidate_id, rank_position);
 
   return batch_id;
 end;
@@ -191,7 +218,7 @@ as $$
 declare
   viewer uuid := auth.uid();
   stored_viewer uuid;
-  p_impression_id bigint;
+  impression_id bigint;
   parsed_kind public.resonance_outcome_kind;
 begin
   if viewer is null then
@@ -206,7 +233,7 @@ begin
   end;
 
   select di.viewer_id, di.id
-  into stored_viewer, p_impression_id
+  into stored_viewer, impression_id
   from public.discovery_impressions di
   where di.batch_id = p_batch_id
     and di.candidate_id = p_candidate_id;
@@ -215,8 +242,19 @@ begin
     raise exception 'Impression is not owned by the authenticated viewer';
   end if;
 
-  if parsed_kind = 'room_entered'::public.resonance_outcome_kind and p_room_id is null then
-    raise exception 'room_entered outcome requires a room id';
+  if parsed_kind = 'room_entered'::public.resonance_outcome_kind then
+    if p_room_id is null then
+      raise exception 'room_entered outcome requires a room id';
+    end if;
+
+    if not exists (
+      select 1
+      from public.room_members rm
+      where rm.room_id = p_room_id
+        and rm.user_id = viewer
+    ) then
+      raise exception 'room_entered outcome requires room membership';
+    end if;
   end if;
 
   insert into public.discovery_outcomes(
@@ -226,7 +264,7 @@ begin
     room_id
   )
   values (
-    p_impression_id,
+    impression_id,
     viewer,
     parsed_kind,
     p_room_id
