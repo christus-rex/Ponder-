@@ -320,6 +320,10 @@ test('resonance outcomes verify durable connection and shared-room state', () =>
     presenceOutcomes,
     /reported outcome is unavailable until durable moderation reports ship/i
   );
+  assert.match(
+    presenceOutcomes,
+    /repeat_interaction outcome is unavailable until durable interaction history ships/i
+  );
 });
 
 test('connection continuation is server-authoritative and telemetry follows the mutation', () => {
