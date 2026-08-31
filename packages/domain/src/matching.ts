@@ -21,10 +21,13 @@ export interface ResonanceProfile {
   interests: readonly string[];
   eligible?: boolean;
   blocked?: boolean;
+  availableNow?: boolean;
 }
 
 export interface ResonanceScore {
   score: number;
+  baseScore: number;
+  availabilityBonus: number;
   intentScore: number;
   interestScore: number;
   sharedInterests: string[];
@@ -122,7 +125,9 @@ export function scoreResonance(viewer: ResonanceProfile, candidate: ResonancePro
 
   // Intent is intentionally dominant for cold-start discovery. Interests refine the
   // result without letting popularity, gifts, or spending determine who is seen.
-  const score = Math.round((intentScore * 0.65 + interestScore * 0.35) * 100);
+  const baseScore = Math.round((intentScore * 0.65 + interestScore * 0.35) * 100);
+  const availabilityBonus = candidate.availableNow ? 4 : 0;
+  const score = Math.min(100, baseScore + availabilityBonus);
 
   const reasons: string[] = [];
   let reasonCode: ResonanceReasonCode;
@@ -145,12 +150,18 @@ export function scoreResonance(viewer: ResonanceProfile, candidate: ResonancePro
     reasons.push(`Shared: ${sharedInterests.slice(0, 3).join(', ')}`);
   }
 
+  if (candidate.availableNow) {
+    reasons.push('Available now');
+  }
+
   if (reasons.length === 0) {
     reasons.push('A different perspective with compatible intent');
   }
 
   return {
     score,
+    baseScore,
+    availabilityBonus,
     intentScore,
     interestScore,
     sharedInterests,
@@ -179,6 +190,8 @@ export function rankResonance<T extends ResonanceProfile>(
 function emptyScore(reason: string): ResonanceScore {
   return {
     score: 0,
+    baseScore: 0,
+    availabilityBonus: 0,
     intentScore: 0,
     interestScore: 0,
     sharedInterests: [],
