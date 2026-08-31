@@ -4,12 +4,13 @@ import type {
   VerifiedProviderExchangeContext,
 } from "./mediaProviderExchange";
 
-const DEFAULT_REALTIMEKIT_API_BASE = "https://api.dyte.io/v2";
-const DEFAULT_ALLOWED_REALTIMEKIT_API_HOSTS = ["api.dyte.io"] as const;
+const DEFAULT_REALTIMEKIT_API_BASE = "https://api.cloudflare.com/client/v4";
+const DEFAULT_ALLOWED_REALTIMEKIT_API_HOSTS = ["api.cloudflare.com"] as const;
 
 export interface RealtimeKitMediaProviderAdapterConfig {
-  organizationId: string;
-  apiKey: string;
+  accountId: string;
+  appId: string;
+  apiToken: string;
   subscribeOnlyPreset: string;
   publisherPreset: string;
   resolveMeetingId(roomId: string): Promise<string>;
@@ -27,7 +28,7 @@ type RealtimeKitParticipantResponse = {
 };
 
 /**
- * Server-only RealtimeKit/Dyte REST adapter.
+ * Server-only Cloudflare RealtimeKit REST adapter.
  *
  * Provider permission is represented by server-controlled presets. The adapter
  * never accepts a preset name from the browser and refuses mixed publish
@@ -59,21 +60,18 @@ export class RealtimeKitMediaProviderAdapter
 
     const presetName = selectPreset(context, this.config);
     const response = await this.fetchImpl(
-      `${this.apiBase}/meetings/${encodeURIComponent(meetingId)}/participants`,
+      this.meetingParticipantsUrl(meetingId),
       {
         method: "POST",
         headers: {
-          Authorization: `Basic ${encodeBasicAuth(
-            this.config.organizationId,
-            this.config.apiKey,
-          )}`,
+          Authorization: `Bearer ${this.config.apiToken}`,
           "Content-Type": "application/json",
           Accept: "application/json",
         },
         body: JSON.stringify({
           name: context.userId,
           preset_name: presetName,
-          client_specific_id: context.userId,
+          custom_participant_id: context.userId,
         }),
         cache: "no-store",
       },
@@ -109,22 +107,33 @@ export class RealtimeKitMediaProviderAdapter
     };
   }
 
+  private meetingParticipantsUrl(meetingId: string): string {
+    return [
+      this.apiBase,
+      "accounts",
+      encodeURIComponent(this.config.accountId),
+      "realtime",
+      "kit",
+      encodeURIComponent(this.config.appId),
+      "meetings",
+      encodeURIComponent(meetingId),
+      "participants",
+    ].join("/");
+  }
+
   private async deleteParticipant(
     meetingId: string,
     participantId: string,
   ): Promise<void> {
     try {
       await this.fetchImpl(
-        `${this.apiBase}/meetings/${encodeURIComponent(
-          meetingId,
-        )}/participants/${encodeURIComponent(participantId)}`,
+        `${this.meetingParticipantsUrl(meetingId)}/${encodeURIComponent(
+          participantId,
+        )}`,
         {
           method: "DELETE",
           headers: {
-            Authorization: `Basic ${encodeBasicAuth(
-              this.config.organizationId,
-              this.config.apiKey,
-            )}`,
+            Authorization: `Bearer ${this.config.apiToken}`,
             Accept: "application/json",
           },
           cache: "no-store",
@@ -176,10 +185,6 @@ function readJwtExpiry(token: string): number {
   return (payload as { exp: number }).exp;
 }
 
-function encodeBasicAuth(organizationId: string, apiKey: string): string {
-  return Buffer.from(`${organizationId}:${apiKey}`, "utf8").toString("base64");
-}
-
 function normalizeApiBase(value: string, allowedHosts: readonly string[]): string {
   const trimmed = value.trim().replace(/\/+$/, "");
   let url: URL;
@@ -206,8 +211,9 @@ function normalizeApiBase(value: string, allowedHosts: readonly string[]): strin
 }
 
 function validateConfig(config: RealtimeKitMediaProviderAdapterConfig): void {
-  if (!config.organizationId.trim()) throw new Error("RealtimeKit organization ID is required");
-  if (!config.apiKey.trim()) throw new Error("RealtimeKit API key is required");
+  if (!config.accountId.trim()) throw new Error("Cloudflare account ID is required");
+  if (!config.appId.trim()) throw new Error("RealtimeKit app ID is required");
+  if (!config.apiToken.trim()) throw new Error("Cloudflare Realtime API token is required");
   if (!config.subscribeOnlyPreset.trim()) {
     throw new Error("RealtimeKit subscribe-only preset is required");
   }

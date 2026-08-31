@@ -75,8 +75,9 @@ export async function POST(
   });
 
   const adapter = new RealtimeKitMediaProviderAdapter({
-    organizationId: config.organizationId,
-    apiKey: config.apiKey,
+    accountId: config.accountId,
+    appId: config.appId,
+    apiToken: config.apiToken,
     subscribeOnlyPreset: config.subscribeOnlyPreset,
     publisherPreset: config.publisherPreset,
     resolveMeetingId: (authorizedRoomId) =>
@@ -143,8 +144,9 @@ function readServerConfig() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const mediaSessionSecret = process.env.MEDIA_SESSION_AUTH_SECRET;
-  const organizationId = process.env.REALTIMEKIT_ORGANIZATION_ID;
-  const apiKey = process.env.REALTIMEKIT_API_KEY;
+  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+  const appId = process.env.REALTIMEKIT_APP_ID;
+  const apiToken = process.env.CLOUDFLARE_REALTIME_API_TOKEN;
   const subscribeOnlyPreset = process.env.REALTIMEKIT_SUBSCRIBE_ONLY_PRESET;
   const publisherPreset = process.env.REALTIMEKIT_PUBLISHER_PRESET;
 
@@ -153,8 +155,9 @@ function readServerConfig() {
     !serviceRoleKey ||
     !mediaSessionSecret ||
     mediaSessionSecret.length < 32 ||
-    !organizationId ||
-    !apiKey ||
+    !accountId ||
+    !appId ||
+    !apiToken ||
     !subscribeOnlyPreset ||
     !publisherPreset
   ) {
@@ -165,8 +168,9 @@ function readServerConfig() {
     supabaseUrl,
     serviceRoleKey,
     mediaSessionSecret,
-    organizationId,
-    apiKey,
+    accountId,
+    appId,
+    apiToken,
     subscribeOnlyPreset,
     publisherPreset,
     apiBase: process.env.REALTIMEKIT_API_BASE?.trim() || undefined,
