@@ -71,7 +71,7 @@ test('discover issues the impression batch before requesting presence', () => {
 test('presence is display-only and does not influence resonance ranking', () => {
   assert.match(
     discoverPage,
-    /availableNow: false,[\s\S]*rankResonance/i
+    /rankResonance[\s\S]*availableNow: false/i
   );
   assert.match(
     discoverPage,
