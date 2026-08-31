@@ -9,6 +9,11 @@ export const SOCIAL_INTENTS = [
 ] as const;
 
 export type SocialIntent = (typeof SOCIAL_INTENTS)[number];
+export type ResonanceReasonCode =
+  | 'same_intent'
+  | 'complementary_intent'
+  | 'shared_interests'
+  | 'compatible_intent';
 
 export interface ResonanceProfile {
   id: string;
@@ -24,6 +29,7 @@ export interface ResonanceScore {
   interestScore: number;
   sharedInterests: string[];
   reasons: string[];
+  reasonCode: ResonanceReasonCode | null;
 }
 
 export interface RankedResonance<T extends ResonanceProfile> {
@@ -119,12 +125,20 @@ export function scoreResonance(viewer: ResonanceProfile, candidate: ResonancePro
   const score = Math.round((intentScore * 0.65 + interestScore * 0.35) * 100);
 
   const reasons: string[] = [];
+  let reasonCode: ResonanceReasonCode;
+
   if (viewer.intent === candidate.intent) {
+    reasonCode = 'same_intent';
     reasons.push(`Both here to ${humanizeIntent(viewer.intent)}`);
   } else if (intentScore >= 0.85) {
+    reasonCode = 'complementary_intent';
     reasons.push(
       `${humanizeIntent(viewer.intent)} pairs well with ${humanizeIntent(candidate.intent)}`,
     );
+  } else if (sharedInterests.length > 0) {
+    reasonCode = 'shared_interests';
+  } else {
+    reasonCode = 'compatible_intent';
   }
 
   if (sharedInterests.length > 0) {
@@ -141,6 +155,7 @@ export function scoreResonance(viewer: ResonanceProfile, candidate: ResonancePro
     interestScore,
     sharedInterests,
     reasons,
+    reasonCode,
   };
 }
 
@@ -168,6 +183,7 @@ function emptyScore(reason: string): ResonanceScore {
     interestScore: 0,
     sharedInterests: [],
     reasons: [reason],
+    reasonCode: null,
   };
 }
 
