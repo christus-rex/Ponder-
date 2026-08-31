@@ -78,3 +78,25 @@ test('authenticated host can issue host command after joining', () => {
   assert.equal(locked.accepted, true);
   assert.equal(locked.protocol.room.locked, true);
 });
+
+
+test('speaker demotion cannot be issued through the ordinary client command path', () => {
+  const protocol = initialRoomBrainProtocolState(initialRoomBrainState());
+  assert.throws(
+    () =>
+      applyAuthorizedRoomBrainEnvelope(
+        protocol,
+        { userId: 'host-1', role: 'host' },
+        envelope(
+          'cmd_demote_1001',
+          {
+            type: 'demote_speaker',
+            actorUserId: 'host-1',
+            targetUserId: 'speaker-1'
+          },
+          0
+        )
+      ),
+    /trusted backend moderation/
+  );
+});
