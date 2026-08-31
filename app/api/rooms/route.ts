@@ -97,22 +97,32 @@ async function readRequest(request: Request): Promise<CreateRoomRequest | null> 
   if (typeof body !== "object" || body === null || Array.isArray(body)) return null;
 
   const record = body as Record<string, unknown>;
-  if (typeof record.title !== "string") return null;
+  if (
+    typeof record.title !== "string" ||
+    record.title.trim().length < 3 ||
+    record.title.trim().length > 100
+  ) {
+    return null;
+  }
   if (
     record.description !== undefined &&
-    typeof record.description !== "string"
+    (typeof record.description !== "string" ||
+      record.description.trim().length > 2000)
   ) {
     return null;
   }
   if (
     record.currentIntent !== undefined &&
-    typeof record.currentIntent !== "string"
+    (typeof record.currentIntent !== "string" ||
+      !SOCIAL_INTENTS.has(record.currentIntent as SocialIntent))
   ) {
     return null;
   }
   if (
     record.maxParticipants !== undefined &&
-    !Number.isSafeInteger(record.maxParticipants)
+    (!Number.isSafeInteger(record.maxParticipants) ||
+      (record.maxParticipants as number) < 2 ||
+      (record.maxParticipants as number) > 24)
   ) {
     return null;
   }
@@ -130,3 +140,14 @@ async function readRequest(request: Request): Promise<CreateRoomRequest | null> 
       : {}),
   };
 }
+
+
+const SOCIAL_INTENTS = new Set<SocialIntent>([
+  "talk",
+  "meet",
+  "deep_conversation",
+  "create",
+  "debate",
+  "listen",
+  "hang_out",
+]);
