@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 const migration = readFileSync(
-  'supabase/migrations/20260831125000_internalize_profile_discoverability.sql',
+  'supabase/migrations/20260831125327_internalize_profile_discoverability.sql',
   'utf8'
 );
 
