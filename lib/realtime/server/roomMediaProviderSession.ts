@@ -1,6 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { MediaRole } from "../../../packages/domain/src/media";
 
+const MEDIA_REVOCATION_MAX_ATTEMPTS = 3;
+
 export interface TrackedMediaProviderSession {
   roomId: string;
   userId: string;
@@ -121,14 +123,18 @@ async function revokeTrackedSessionsBestEffort(
 
   for (const session of sessions) {
     try {
-      await revoker.revokeParticipant(
-        session.roomId,
-        session.providerParticipantId,
+      await retryBounded(() =>
+        revoker.revokeParticipant(
+          session.roomId,
+          session.providerParticipantId,
+        ),
       );
-      await store.markRevoked(
-        session.roomId,
-        session.userId,
-        session.providerParticipantId,
+      await retryBounded(() =>
+        store.markRevoked(
+          session.roomId,
+          session.userId,
+          session.providerParticipantId,
+        ),
       );
       revoked += 1;
     } catch (error) {
@@ -144,6 +150,19 @@ async function revokeTrackedSessionsBestEffort(
   }
 
   return revoked;
+}
+
+async function retryBounded(operation: () => Promise<void>): Promise<void> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= MEDIA_REVOCATION_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      await operation();
+      return;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError;
 }
 
 export function createSupabaseRoomMediaProviderSessionStore(
