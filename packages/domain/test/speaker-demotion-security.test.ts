@@ -62,10 +62,25 @@ test("provider exchange revalidates live Room Brain authority before RealtimeKit
     "exchangeTrustedMediaCapability",
     revalidateIndex + 1,
   );
+  const trackIndex = mediaSessionRoute.indexOf(
+    "replaceTrackedMediaProviderSession",
+    exchangeIndex + 1,
+  );
+  const finalRevalidateIndex = mediaSessionRoute.indexOf(
+    "requestAuthoritativeMediaGrant",
+    trackIndex + 1,
+  );
+  const responseIndex = mediaSessionRoute.indexOf(
+    "const publicCredentials",
+    finalRevalidateIndex + 1,
+  );
 
   assert.ok(verifyIndex >= 0);
   assert.ok(revalidateIndex > verifyIndex);
   assert.ok(exchangeIndex > revalidateIndex);
+  assert.ok(trackIndex > exchangeIndex);
+  assert.ok(finalRevalidateIndex > trackIndex);
+  assert.ok(responseIndex > finalRevalidateIndex);
   assert.match(
     mediaSessionRoute,
     /capabilityToken: freshAuthorization\.token/,
@@ -73,5 +88,9 @@ test("provider exchange revalidates live Room Brain authority before RealtimeKit
   assert.match(
     mediaSessionRoute,
     /error\.status === 409[\s\S]*Resync before establishing media/,
+  );
+  assert.match(
+    mediaSessionRoute,
+    /participantRevoker\.revokeParticipant[\s\S]*sessionStore\.markRevoked/,
   );
 });
