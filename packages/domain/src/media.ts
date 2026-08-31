@@ -1,7 +1,13 @@
 import type { RoomId, UserId } from './models.ts';
 
 export type MediaRole = 'host' | 'moderator' | 'speaker' | 'viewer';
-export interface JoinMediaRoomInput { roomId: RoomId; userId: UserId; role: MediaRole; token: string; }
+export interface JoinMediaRoomInput {
+  roomId: RoomId;
+  userId: UserId;
+  role: MediaRole;
+  token: string;
+  initialMicrophoneEnabled: false;
+}
 export interface MediaParticipant { userId: UserId; role: MediaRole; microphoneEnabled: boolean; cameraEnabled: boolean; }
 
 export interface RealtimeMediaProvider {
