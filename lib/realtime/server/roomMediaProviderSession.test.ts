@@ -34,6 +34,9 @@ function storeBase(
     async listActiveRoomSessions() {
       return [];
     },
+    async listActiveUserSessions() {
+      return [];
+    },
     async markRevoked() {},
     ...overrides,
   };
@@ -226,5 +229,44 @@ describe("revokeTrackedMediaSessionsForRoom", () => {
       revokeTrackedMediaSessionsForRoom(store, revoker, "room-1"),
     ).rejects.toThrow("provider unavailable");
     expect(events).toEqual(["revoke-failed"]);
+  });
+});
+
+
+describe("revokeTrackedMediaSessionsForUser", () => {
+  it("revokes only the target user's tracked sessions", async () => {
+    const events: string[] = [];
+    const store = storeBase({
+      async listActiveUserSessions(roomId, userId) {
+        expect(roomId).toBe("room-1");
+        expect(userId).toBe("user-1");
+        return [
+          tracked({ providerParticipantId: "participant-1" }),
+          tracked({ providerParticipantId: "participant-2" }),
+        ];
+      },
+      async markRevoked(_roomId, userId, participantId) {
+        events.push(`marked:${userId}:${participantId}`);
+      },
+    });
+    const revoker: MediaProviderParticipantRevoker = {
+      async revokeParticipant(_roomId, participantId) {
+        events.push(`revoked:${participantId}`);
+      },
+    };
+
+    const { revokeTrackedMediaSessionsForUser } = await import(
+      "./roomMediaProviderSession"
+    );
+    await expect(
+      revokeTrackedMediaSessionsForUser(store, revoker, "room-1", "user-1"),
+    ).resolves.toBe(2);
+
+    expect(events).toEqual([
+      "revoked:participant-1",
+      "marked:user-1:participant-1",
+      "revoked:participant-2",
+      "marked:user-1:participant-2",
+    ]);
   });
 });

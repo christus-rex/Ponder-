@@ -21,6 +21,7 @@ export type RoomBrainCommand =
   | { type: 'request_seat'; userId: UserId }
   | { type: 'cancel_seat'; userId: UserId }
   | { type: 'grant_seat'; actorUserId: UserId; targetUserId: UserId }
+  | { type: 'demote_speaker'; actorUserId: UserId; targetUserId: UserId }
   | { type: 'set_room_lock'; actorUserId: UserId; locked: boolean }
   | { type: 'react'; userId: UserId; reaction: string };
 
@@ -62,6 +63,19 @@ export function applyRoomBrainCommand(state: RoomBrainState, command: RoomBrainC
       requireModerator(next, command.actorUserId);
       const target = requireParticipant(next, command.targetUserId);
       target.role = 'speaker';
+      next.speakerQueue = next.speakerQueue.filter((id) => id !== command.targetUserId);
+      break;
+    }
+    case 'demote_speaker': {
+      requireModerator(next, command.actorUserId);
+      if (command.actorUserId === command.targetUserId) {
+        throw new Error('Moderator cannot demote self');
+      }
+      const target = requireParticipant(next, command.targetUserId);
+      if (target.role !== 'speaker') {
+        throw new Error('Only speakers can be demoted');
+      }
+      target.role = 'viewer';
       next.speakerQueue = next.speakerQueue.filter((id) => id !== command.targetUserId);
       break;
     }

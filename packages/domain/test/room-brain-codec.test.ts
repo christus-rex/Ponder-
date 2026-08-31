@@ -88,3 +88,23 @@ test('non-numeric expected sequence is rejected', () => {
     /Expected sequence must be a number/
   );
 });
+
+
+test('backend-only speaker demotion is rejected on the client websocket codec', () => {
+  assert.throws(
+    () =>
+      decodeRoomBrainClientMessage(
+        JSON.stringify({
+          version: 1,
+          commandId: 'cmd_demote_2001',
+          expectedSequence: 0,
+          command: {
+            type: 'demote_speaker',
+            actorUserId: 'host-1',
+            targetUserId: 'speaker-1'
+          }
+        })
+      ),
+    /Unknown Room Brain command type/
+  );
+});

@@ -1,6 +1,7 @@
 import { DurableObject } from "cloudflare:workers";
 import {
   applyRoomBrainCommand,
+  applyRoomBrainEnvelope,
   buildRoomBrainSnapshot,
   claimRoomBrainPresence,
   createMediaSessionToken,
@@ -37,9 +38,13 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     const mediaGrantMatch = /^\/rooms\/([^/]+)\/media-grant$/.exec(url.pathname);
+    const moderationActionMatch = /^\/rooms\/([^/]+)\/moderation-action$/.exec(
+      url.pathname,
+    );
 
-    if (request.method === "POST" && mediaGrantMatch) {
-      const roomId = decodeURIComponent(mediaGrantMatch[1]!);
+    if (request.method === "POST" && (mediaGrantMatch || moderationActionMatch)) {
+      const routeMatch = mediaGrantMatch ?? moderationActionMatch;
+      const roomId = decodeURIComponent(routeMatch![1]!);
       const token = extractBearerToken(request.headers.get("Authorization"));
       if (!token) {
         return new Response("Missing realtime authorization", { status: 401 });
@@ -54,6 +59,13 @@ export default {
 
       if (payload.roomId !== roomId) {
         return new Response("Room authorization mismatch", { status: 403 });
+      }
+      if (
+        moderationActionMatch &&
+        payload.role !== "host" &&
+        payload.role !== "moderator"
+      ) {
+        return new Response("Moderator authorization required", { status: 403 });
       }
 
       const id = env.ROOM_BRAIN.idFromName(roomId);
@@ -110,8 +122,12 @@ export default {
 
 export class RoomBrainDurableObject extends DurableObject<Env> {
   async fetch(request: Request): Promise<Response> {
-    if (request.method === "POST" && new URL(request.url).pathname.endsWith("/media-grant")) {
+    const pathname = new URL(request.url).pathname;
+    if (request.method === "POST" && pathname.endsWith("/media-grant")) {
       return this.issueMediaGrant(request);
+    }
+    if (request.method === "POST" && pathname.endsWith("/moderation-action")) {
+      return this.applyModerationAction(request);
     }
 
     if (request.headers.get("Upgrade")?.toLowerCase() !== "websocket") {
@@ -242,6 +258,107 @@ export class RoomBrainDurableObject extends DurableObject<Env> {
 
   async webSocketError(webSocket: HibernatingWebSocket): Promise<void> {
     await this.removeConnection(webSocket);
+  }
+
+  private async applyModerationAction(request: Request): Promise<Response> {
+    const attachment = readVerifiedAttachment(request.headers);
+    if (!attachment) {
+      return new Response("Verified connection identity required", { status: 401 });
+    }
+    if (attachment.role !== "host" && attachment.role !== "moderator") {
+      return new Response("Moderator authorization required", { status: 403 });
+    }
+
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return new Response("Invalid moderation request", { status: 400 });
+    }
+    if (typeof body !== "object" || body === null || Array.isArray(body)) {
+      return new Response("Invalid moderation request", { status: 400 });
+    }
+
+    const record = body as Record<string, unknown>;
+    const commandId = record.commandId;
+    const expectedSequence = record.expectedSequence;
+    const action = record.action;
+    const targetUserId = record.targetUserId;
+    if (
+      typeof commandId !== "string" ||
+      !/^[A-Za-z0-9_-]{8,80}$/.test(commandId) ||
+      !Number.isSafeInteger(expectedSequence) ||
+      (expectedSequence as number) < 0 ||
+      action !== "demote_speaker" ||
+      typeof targetUserId !== "string" ||
+      targetUserId.length < 1 ||
+      targetUserId.length > 128
+    ) {
+      return new Response("Invalid moderation request", { status: 400 });
+    }
+
+    const protocol = await this.loadProtocol();
+    let applied;
+    try {
+      applied = applyRoomBrainEnvelope(protocol, {
+        version: 1,
+        commandId,
+        expectedSequence: expectedSequence as number,
+        command: {
+          type: "demote_speaker",
+          actorUserId: attachment.userId,
+          targetUserId,
+        },
+      });
+    } catch {
+      return new Response("Moderation action rejected by authoritative state", {
+        status: 422,
+      });
+    }
+
+    if (!applied.accepted) {
+      if (applied.duplicate) {
+        return Response.json(
+          {
+            sequence: applied.protocol.room.sequence,
+            targetUserId,
+            role: applied.protocol.room.participants[targetUserId]?.role ?? null,
+            duplicate: true,
+          },
+          { headers: { "Cache-Control": "no-store" } },
+        );
+      }
+      return Response.json(
+        {
+          error: "Room Brain sequence changed; resync required",
+          snapshot: buildRoomBrainSnapshot(applied.protocol.room),
+        },
+        { status: 409, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+
+    await this.ctx.storage.put(PROTOCOL_STORAGE_KEY, applied.protocol);
+    const broadcast = {
+      version: 1 as const,
+      type: "state_changed" as const,
+      sequence: applied.protocol.room.sequence,
+      command: {
+        type: "demote_speaker" as const,
+        actorUserId: attachment.userId,
+        targetUserId,
+      },
+    };
+    this.broadcast(broadcast);
+
+    return Response.json(
+      {
+        sequence: applied.protocol.room.sequence,
+        targetUserId,
+        role: "viewer",
+        duplicate: false,
+      },
+      { headers: { "Cache-Control": "no-store" } },
+    );
   }
 
   private async issueMediaGrant(request: Request): Promise<Response> {

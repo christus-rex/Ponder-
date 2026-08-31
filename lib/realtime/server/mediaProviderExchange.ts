@@ -51,36 +51,49 @@ export interface TrustedMediaProviderAdapter {
  * from the signed capability after verification; an adapter never receives
  * browser-supplied publish privileges.
  */
-export async function exchangeTrustedMediaCapability(
+export async function verifyTrustedMediaCapability(
   input: TrustedProviderExchangeInput,
-  adapter: TrustedMediaProviderAdapter,
   mediaSessionSecret: string,
-  nowEpochSeconds = Math.floor(Date.now() / 1000)
-): Promise<TrustedProviderExchangeResult> {
+  nowEpochSeconds = Math.floor(Date.now() / 1000),
+): Promise<VerifiedProviderExchangeContext> {
   validateExpectedSequence(input.expectedAuthoritySequence);
 
   const payload = await verifyMediaSessionToken(
     input.capabilityToken,
     mediaSessionSecret,
-    nowEpochSeconds
+    nowEpochSeconds,
   );
-
   assertExpectedBindings(payload, input);
 
-  const credentials = await adapter.exchange({
+  return {
     roomId: payload.roomId,
     userId: payload.userId,
     role: payload.role,
     authoritySequence: payload.authoritySequence,
     expiresAt: payload.exp,
     permissions: permissionsForRole(payload.role),
-  });
+  };
+}
 
-  validateProviderCredentials(credentials, nowEpochSeconds, payload.exp);
+export async function exchangeTrustedMediaCapability(
+  input: TrustedProviderExchangeInput,
+  adapter: TrustedMediaProviderAdapter,
+  mediaSessionSecret: string,
+  nowEpochSeconds = Math.floor(Date.now() / 1000)
+): Promise<TrustedProviderExchangeResult> {
+  const verified = await verifyTrustedMediaCapability(
+    input,
+    mediaSessionSecret,
+    nowEpochSeconds,
+  );
+
+  const credentials = await adapter.exchange(verified);
+
+  validateProviderCredentials(credentials, nowEpochSeconds, verified.expiresAt);
   return {
     ...credentials,
-    verifiedRole: payload.role,
-    authoritySequence: payload.authoritySequence,
+    verifiedRole: verified.role,
+    authoritySequence: verified.authoritySequence,
   };
 }
 

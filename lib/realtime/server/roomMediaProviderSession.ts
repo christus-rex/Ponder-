@@ -20,6 +20,10 @@ export interface RoomMediaProviderSessionStore {
     providerParticipantId: string,
   ): Promise<boolean>;
   listActiveRoomSessions(roomId: string): Promise<TrackedMediaProviderSession[]>;
+  listActiveUserSessions(
+    roomId: string,
+    userId: string,
+  ): Promise<TrackedMediaProviderSession[]>;
   markRevoked(
     roomId: string,
     userId: string,
@@ -78,6 +82,36 @@ export async function replaceTrackedMediaProviderSession(
     await compensateTrackedParticipant(store, revoker, session);
     throw new Error("Provider media session was superseded before delivery");
   }
+}
+
+export async function revokeTrackedMediaSessionsForUser(
+  store: RoomMediaProviderSessionStore,
+  revoker: MediaProviderParticipantRevoker,
+  roomId: string,
+  userId: string,
+): Promise<number> {
+  const normalizedRoomId = normalizeId(roomId, "Room ID");
+  const normalizedUserId = normalizeId(userId, "User ID");
+  const sessions = await store.listActiveUserSessions(
+    normalizedRoomId,
+    normalizedUserId,
+  );
+
+  let revoked = 0;
+  for (const session of sessions) {
+    await revoker.revokeParticipant(
+      normalizedRoomId,
+      session.providerParticipantId,
+    );
+    await store.markRevoked(
+      normalizedRoomId,
+      normalizedUserId,
+      session.providerParticipantId,
+    );
+    revoked += 1;
+  }
+
+  return revoked;
 }
 
 export async function revokeTrackedMediaSessionsForRoom(
@@ -170,6 +204,28 @@ export function createSupabaseRoomMediaProviderSessionStore(
         // 24 room participants × the Room Brain four-connection bound. More
         // unrevoked handles indicate invariant drift that requires repair.
         throw new Error("Provider media session registry exceeded room bound");
+      }
+      return sessions;
+    },
+
+    async listActiveUserSessions(roomId, userId) {
+      const { data, error } = await adminClient
+        .from("room_media_provider_sessions")
+        .select(
+          "room_id,user_id,provider_participant_id,authority_sequence,role,expires_at",
+        )
+        .eq("room_id", roomId)
+        .eq("user_id", userId)
+        .is("revoked_at", null)
+        .limit(5);
+
+      if (error) {
+        throw new Error("Unable to list active user provider media sessions");
+      }
+
+      const sessions = (data ?? []).map(decodeSession);
+      if (sessions.length > 4) {
+        throw new Error("Provider media session registry exceeded user bound");
       }
       return sessions;
     },

@@ -91,6 +91,9 @@ function fakes(options?: {
       events.push(`db:list-sessions:${roomId}`);
       return trackedSessions;
     },
+    async listActiveUserSessions() {
+      return [];
+    },
     async markRevoked(_roomId, userId, participantId) {
       events.push(`db:revoked:${userId}:${participantId}`);
     },
