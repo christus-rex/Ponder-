@@ -188,6 +188,8 @@ begin
     end if;
   elsif parsed_kind = 'reported'::public.resonance_outcome_kind then
     raise exception 'reported outcome is unavailable until durable moderation reports ship';
+  elsif parsed_kind = 'repeat_interaction'::public.resonance_outcome_kind then
+    raise exception 'repeat_interaction outcome is unavailable until durable interaction history ships';
   end if;
 
   insert into public.discovery_outcomes(
