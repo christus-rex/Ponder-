@@ -63,7 +63,7 @@ test("Room Brain ejection removes authority and closes every target socket", () 
   assert.match(worker, /action !== "demote_speaker"[\s\S]*action !== "eject_participant"/);
   assert.match(worker, /type: "eject_participant"/);
   assert.match(worker, /closeParticipantSockets\(targetUserId\)/);
-  assert.match(worker, /socket\.close\(4003, "Ejected from room"\)/);
+  assert.match(worker, /hibernatingSocket\.close\(4003, "Ejected from room"\)/);
 });
 
 test("live-room host removal uses the backend endpoint with the current sequence", () => {
