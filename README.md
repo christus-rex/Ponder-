@@ -2,47 +2,45 @@
 
 **Less broadcasting. More belonging.**
 
-Ponder+ is an authenticity-first 18+ live-social product focused on meaningful conversation, creator-led communities, small rooms, realtime communication, and relationships people choose to continue.
+Ponder+ is an 18+ live-social product focused on small, intentional conversations and relationship continuity rather than popularity or spend.
 
-## Integrated stack
+## Canonical product
+
+The authenticated Next.js application is the primary product surface.
 
 - **Web:** Next.js + React + TypeScript
-- **Mobile:** Expo + React Native + TypeScript
-- **Backend:** Supabase + Postgres
-- **Realtime control:** Ponder Room Brain state machine + Cloudflare Durable Objects direction
-- **Media:** Cloudflare Realtime SFU direction behind a provider abstraction
-- **Storage:** Cloudflare R2 direction
-- **Moderation:** layered automated checks + human review
-- **Economy:** append-only/double-entry ledger; real-money settlement remains server-side
-- **Crypto spike:** Base Account + USDC on Base Sepolia only
-- **AI:** realtime translation prototype
-- **QA:** GitHub Actions, strict TypeScript, unit/security tests, web + mobile builds
+- **Mobile companion:** Expo + React Native + TypeScript
+- **Identity and durable data:** Supabase Auth + PostgreSQL
+- **Discovery:** deterministic resonance ranking with privacy-bounded presence/outcome telemetry
+- **Realtime authority:** Ponder Room Brain on Cloudflare Durable Objects
+- **Media transport:** Cloudflare RealtimeKit behind a provider-neutral adapter
+- **Translation:** authenticated room-native translation sidecar
+- **QA:** strict TypeScript, unit/security tests, production web build, Android export
 
-## Current working tracks
+The live-room path is real and connected:
 
-### Web product
-The Next.js app contains the social shell, discovery, auth/onboarding work, health/config routes, Supabase helpers, wallet UI, Base Sepolia test configuration, and ledger tests.
-
-### Mobile product
-The Expo app contains the first privacy-conscious 18+ gate and the initial Ponder+ product shell.
-
-### Room Brain
-The shared domain package implements retry-safe live-room coordination: deterministic room state, speaker queues, reaction aggregation, command idempotency, stale-sequence resync, runtime message validation, authenticated actor binding, and transport-safe acknowledgements/errors.
-
-### Working browser demo
-Open `demo/index.html` for a self-contained interactive alpha covering age gate, discovery, room entry, seat requests, reactions, demo gifting, chat, reporting, and visible Room Brain event sequencing.
-
-### Live AI Translator
-The standalone translator demo is preserved, and the web app now also includes an authenticated `/rooms/lab` room-native translation sidecar that accepts a participant audio track, obtains ephemeral translation credentials from the backend, and keeps translated audio/captions separate from original room audio.
-
-Run:
-
-```bash
-export OPENAI_API_KEY="..."
-npm run translator:demo
+```text
+Discover
+  -> create / enter room
+  -> authenticated Room Brain ticket
+  -> authoritative snapshot + sequence
+  -> server-verified media capability
+  -> trusted RealtimeKit participant exchange
+  -> provider-neutral room media coordinator
 ```
 
-See `docs/live-ai-translator.md` and `docs/room-native-translation.md`.
+Room Brain is the authority for live roles, speaker queue, reactions, locks, demotion, ejection, reconnect/resync, and publication eligibility. The browser cannot choose provider roles, presets, meeting IDs, or credentials.
+
+## Security boundaries
+
+- Adult eligibility and account enforcement are server-side.
+- Room membership lifecycle is server-owned; ejected users cannot mint fresh room/media access.
+- Realtime publication fails closed when Room Brain is unsynchronized.
+- RealtimeKit credentials are created only by trusted server exchange and sent only to allowlisted provider hosts.
+- Provider revocation handles are persisted and unresolved cleanup is reconciled durably.
+- Dormant messaging, wallet-link, and ledger tables have no browser access.
+- Money-like accounting remains server-owned; there is no production gift economy in the canonical domain package.
+- Private keys, service-role keys, provider API tokens, Room Brain secrets, and OpenAI server keys never belong in client bundles.
 
 ## Local development
 
@@ -58,23 +56,25 @@ Mobile:
 npm run mobile
 ```
 
-Full verification/build:
+Full verification:
 
 ```bash
 npm run qa
 npm run build
 ```
 
-`npm run build` produces a Next.js production build and an Expo Android export.
+`npm run build` verifies the Next.js production build and Expo Android export.
 
-## Security boundaries
+## Experiments
 
-- DOB and age-verification data never belong in public profiles.
-- Clients cannot directly mutate account enforcement, moderator authority, wallet settlement, purchase verification, or payouts.
-- Room Brain connection identity must be server-verified; client JSON cannot mint roles.
-- Financial operations use durable server-side idempotency and accounting.
-- Private keys, seed phrases, OpenAI server keys, service-role keys, and payment secrets never enter client bundles.
-- Testnet precedes any mainnet crypto workflow.
-- Mature/adult positioning does not bypass app-store, payment, identity, sanctions, or legal requirements.
+Standalone demos, the GitHub Pages static preview, and Base Sepolia wallet/payment spikes are **experiments**, not alternate production architectures. See `docs/EXPERIMENTS.md`.
 
-See `AGENTS.md`, `SECURITY.md`, and `docs/` for architecture and QA decisions.
+## Engineering references
+
+- `docs/ARCHITECTURE.md` — current system boundaries and deployment ownership
+- `docs/DOMAIN_MODEL.md` — canonical durable/ephemeral model
+- `docs/PRODUCT_ARCHITECTURE_V1.md` — product loop and current build state
+- `docs/ROOM_BRAIN_PROTOCOL.md` — Room Brain wire semantics
+- `docs/ROOM_MEDIA_SESSION_COORDINATOR.md` — Room Brain → media authority
+- `docs/TRUST_SAFETY_AND_COMPLIANCE.md` — safety/compliance direction
+- `SECURITY.md` and `AGENTS.md` — repository guardrails
