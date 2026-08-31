@@ -96,6 +96,12 @@ begin
     return 'accepted'::public.connection_status;
   end if;
 
+  -- Serialize new-request admission per viewer so concurrent RPCs cannot race
+  -- the count check and burst past the bounded window.
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(viewer::text, 0)
+  );
+
   select count(*)::integer
   into recent_outbound_count
   from public.connections c
