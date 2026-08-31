@@ -5,6 +5,7 @@ import {
 } from "../../../packages/domain/src/index";
 import {
   exchangeTrustedMediaCapability,
+  verifyTrustedMediaCapability,
   type TrustedMediaProviderAdapter,
   type VerifiedProviderExchangeContext,
 } from "./mediaProviderExchange";
@@ -159,5 +160,28 @@ describe("exchangeTrustedMediaCapability", () => {
         now
       )
     ).rejects.toThrow("outlives Room Brain authority");
+  });
+});
+
+
+describe("verifyTrustedMediaCapability", () => {
+  it("verifies caller bindings without touching the provider", async () => {
+    const verified = await verifyTrustedMediaCapability(
+      {
+        capabilityToken: await capability({ role: "speaker" }),
+        expectedRoomId: "room-1",
+        expectedUserId: "user-1",
+        expectedAuthoritySequence: 42,
+      },
+      secret,
+      now,
+    );
+
+    expect(verified.role).toBe("speaker");
+    expect(verified.authoritySequence).toBe(42);
+    expect(verified.permissions).toEqual({
+      canPublishAudio: true,
+      canPublishVideo: true,
+    });
   });
 });
