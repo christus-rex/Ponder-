@@ -458,21 +458,21 @@ function ParticipantTile({
 
   useEffect(() => {
     const element = videoRef.current;
-    if (!provider || !element || !participant.media?.videoEnabled) return;
+    if (!provider || !element || !participant.media?.cameraEnabled) return;
 
     try {
       return provider.registerVideoElement(participant.userId, element);
     } catch {
       return;
     }
-  }, [participant.userId, participant.media?.videoEnabled, provider]);
+  }, [participant.userId, participant.media?.cameraEnabled, provider]);
 
   const isSelf = participant.userId === selfUserId;
 
   return (
     <article className="liveParticipantCard">
       <div className="liveVideoFrame">
-        {participant.media?.videoEnabled ? (
+        {participant.media?.cameraEnabled ? (
           <video ref={videoRef} autoPlay playsInline muted={isSelf} />
         ) : (
           <div className="liveAvatar">
@@ -485,7 +485,7 @@ function ParticipantTile({
         <strong>{isSelf ? "You" : shortUserId(participant.userId)}</strong>
         <span>
           {participant.media?.microphoneEnabled ? "mic on" : "mic off"} ·{" "}
-          {participant.media?.videoEnabled ? "camera on" : "camera off"}
+          {participant.media?.cameraEnabled ? "camera on" : "camera off"}
         </span>
         {canModerate && participant.role === "speaker" && !isSelf ? (
           <button
