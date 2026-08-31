@@ -108,3 +108,23 @@ test('backend-only speaker demotion is rejected on the client websocket codec', 
     /Unknown Room Brain command type/
   );
 });
+
+
+test('backend-only participant ejection is rejected on the client websocket codec', () => {
+  assert.throws(
+    () =>
+      decodeRoomBrainClientMessage(
+        JSON.stringify({
+          version: 1,
+          commandId: 'cmd_eject_2001',
+          expectedSequence: 0,
+          command: {
+            type: 'eject_participant',
+            actorUserId: 'host-1',
+            targetUserId: 'viewer-1'
+          }
+        })
+      ),
+    /Unknown Room Brain command type/
+  );
+});
