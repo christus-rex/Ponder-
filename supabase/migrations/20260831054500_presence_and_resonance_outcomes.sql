@@ -1,7 +1,7 @@
 begin;
 
 alter table public.user_preferences
-  add column if not exists show_online_status boolean not null default true;
+  add column if not exists show_online_status boolean not null default false;
 
 create table public.user_presence (
   user_id uuid primary key references public.profiles(id) on delete cascade,
