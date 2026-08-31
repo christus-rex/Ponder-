@@ -132,14 +132,15 @@ export async function POST(
       },
     );
 
-    return NextResponse.json(
-      {
-        provider: credentials.provider,
-        participantToken: credentials.participantToken,
-        expiresAt: credentials.expiresAt,
-      },
-      { headers: { "Cache-Control": "no-store" } },
-    );
+    const publicCredentials = {
+      provider: credentials.provider,
+      participantToken: credentials.participantToken,
+      expiresAt: credentials.expiresAt,
+    };
+
+    return NextResponse.json(publicCredentials, {
+      headers: { "Cache-Control": "no-store" },
+    });
   } catch {
     // Do not expose capability, provider, database, or credential-validation details.
     return NextResponse.json(
