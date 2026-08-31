@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 const migration = readFileSync(
-  'supabase/migrations/20260831130000_restrict_resonance_outcomes_to_active_users.sql',
+  'supabase/migrations/20260831120219_restrict_resonance_outcomes_to_active_users.sql',
   'utf8'
 );
 
