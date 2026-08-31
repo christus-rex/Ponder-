@@ -212,8 +212,17 @@ export class ManagedRoomBrainClient {
       };
       const onClose = () => {
         this.detachSocket(socket, onOpen, onMessage, onError, onClose);
-        if (this.socket === socket) this.socket = null;
-        if (!this.stopped) this.scheduleReconnect();
+        const wasCurrentSocket = this.socket === socket;
+        if (wasCurrentSocket) this.socket = null;
+        if (!this.stopped && wasCurrentSocket) {
+          if (this.syncState.status === "synchronized") {
+            this.setSyncState({
+              status: "resync_required",
+              room: this.syncState.room,
+            });
+          }
+          this.scheduleReconnect();
+        }
       };
 
       socket.addEventListener("open", onOpen);

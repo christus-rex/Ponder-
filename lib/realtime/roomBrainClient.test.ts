@@ -124,6 +124,33 @@ describe("ManagedRoomBrainClient", () => {
     expect(client.state.status).toBe("awaiting_snapshot");
   });
 
+  it("invalidates synchronized authority immediately when the socket closes", async () => {
+    const socket = new FakeSocket();
+    const scheduled: Array<() => void> = [];
+    const states: string[] = [];
+    const client = new ManagedRoomBrainClient("room-1", {
+      requestTicket: async () => ticket(),
+      socketFactory: () => socket as unknown as WebSocket,
+      schedule: (callback) => {
+        scheduled.push(callback);
+        return 1 as unknown as ReturnType<typeof setTimeout>;
+      },
+      cancelSchedule: () => {},
+      onSyncStateChange: (state) => states.push(state.status),
+    });
+
+    await client.start();
+    socket.serverMessage(snapshot(7));
+    expect(client.state.status).toBe("synchronized");
+
+    socket.close(1006, "network lost");
+
+    expect(client.state.status).toBe("resync_required");
+    expect(client.state.room?.sequence).toBe(7);
+    expect(states.slice(-2)).toEqual(["synchronized", "resync_required"]);
+    expect(scheduled).toHaveLength(1);
+  });
+
   it("does not reconnect after an intentional stop", async () => {
     const socket = new FakeSocket();
     const scheduled: Array<() => void> = [];
