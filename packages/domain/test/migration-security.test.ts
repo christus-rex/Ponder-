@@ -30,6 +30,10 @@ const roomMembership = readFileSync(
   'supabase/migrations/20260831094000_server_owned_room_membership.sql',
   'utf8'
 );
+const dormantSurfaceFreeze = readFileSync(
+  'supabase/migrations/20260831100000_freeze_unused_client_surfaces.sql',
+  'utf8'
+);
 const sql =
   foundation +
   '\n' +
@@ -43,7 +47,9 @@ const sql =
   '\n' +
   presenceOutcomes +
   '\n' +
-  roomMembership;
+  roomMembership +
+  '\n' +
+  dormantSurfaceFreeze;
 
 test('18+ eligibility is enforced during signup and in private account data', () => {
   assert.match(
@@ -116,22 +122,55 @@ test('direct client room lifecycle mutations are revoked in favor of backend orc
   );
 });
 
-test('room message writes require active room membership', () => {
+test('dormant messaging and wallet-link tables have no browser access', () => {
   assert.match(
-    foundation,
-    /room members send messages[\s\S]*rm\.room_id = messages\.room_id[\s\S]*rm\.user_id = \(select auth\.uid\(\)\)[\s\S]*rm\.left_at is null/i
+    dormantSurfaceFreeze,
+    /revoke all on table public\.messages from anon, authenticated/i
   );
+  assert.match(
+    dormantSurfaceFreeze,
+    /revoke all on table public\.wallet_links from anon, authenticated/i
+  );
+  for (const policy of [
+    'room members read messages',
+    'room members send messages',
+    'authors edit messages',
+    'users manage own wallet links',
+    'users add own wallet links',
+    'users remove own wallet links'
+  ]) {
+    assert.match(
+      dormantSurfaceFreeze,
+      new RegExp(`drop policy if exists "${policy}"`, 'i')
+    );
+  }
 });
 
-test('ledger tables are client read-only', () => {
-  assert.match(
-    foundation,
-    /grant select on public\.ledger_accounts, public\.ledger_entries, public\.ledger_postings to authenticated/i
-  );
-  assert.doesNotMatch(
-    foundation,
-    /grant[^;]*insert[^;]*public\.ledger_(accounts|entries|postings)/i
-  );
+test('ledger tables are fully server-owned until a reviewed financial API exists', () => {
+  for (const table of [
+    'ledger_accounts',
+    'ledger_entries',
+    'ledger_postings'
+  ]) {
+    assert.match(
+      dormantSurfaceFreeze,
+      new RegExp(
+        `revoke all on table public\\.${table} from anon, authenticated`,
+        'i'
+      )
+    );
+  }
+
+  for (const policy of [
+    'users read own ledger accounts',
+    'users read entries touching own accounts',
+    'users read own postings'
+  ]) {
+    assert.match(
+      dormantSurfaceFreeze,
+      new RegExp(`drop policy if exists "${policy}"`, 'i')
+    );
+  }
 });
 
 test('all core user-facing tables enable row-level security', () => {
