@@ -2,9 +2,9 @@ import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { CloudflareRealtimeKitMeetingControlPlane } from "./cloudflareRealtimeKitMeetingControlPlane";
 import { createSupabaseLiveRoomLifecycleStore } from "./liveRoomLifecycle";
 import { createSupabaseRoomMediaProvisioningStore } from "./roomMediaProvisioning";
-import { createSupabaseRoomMediaProviderSessionStore } from "./roomMediaProviderSession";
 import { CloudflareRealtimeKitParticipantRevoker } from "./cloudflareRealtimeKitParticipantRevoker";
 import { resolveRealtimeKitMeetingId } from "./roomMediaProviderMapping";
+import { createVerifiedSupabaseRoomMediaProviderSessionStore } from "./verifiedRoomMediaProviderSessionStore";
 
 export function createLiveRoomServerRuntime() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
@@ -50,7 +50,7 @@ export function createLiveRoomServerRuntime() {
   return {
     roomStore: createSupabaseLiveRoomLifecycleStore(admin),
     mediaStore: createSupabaseRoomMediaProvisioningStore(admin),
-    sessionStore: createSupabaseRoomMediaProviderSessionStore(admin),
+    sessionStore: createVerifiedSupabaseRoomMediaProviderSessionStore(admin),
     controlPlane,
     participantRevoker,
   };
