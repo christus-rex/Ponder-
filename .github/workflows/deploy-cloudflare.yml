@@ -1,6 +1,8 @@
-name: Deploy Full Ponder+ App (manual fallback)
+name: Deploy Full Ponder+ App (approved one-shot)
 
 on:
+  push:
+    branches: ["deploy/approved-20260831-0140"]
   workflow_dispatch:
 
 permissions:
