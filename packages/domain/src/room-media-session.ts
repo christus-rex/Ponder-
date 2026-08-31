@@ -9,10 +9,17 @@ export interface RoomMediaSessionDecision {
   shouldJoinSfu: boolean;
   shouldLeaveSfu: boolean;
   mayPublishAudio: boolean;
+  mayPublishVideo: boolean;
+  mustUnpublishAudio: boolean;
+  mustUnpublishVideo: boolean;
   mustUnpublish: boolean;
 }
 
 export function mayMediaRolePublishAudio(role: MediaRole): boolean {
+  return role === 'host' || role === 'moderator' || role === 'speaker';
+}
+
+export function mayMediaRolePublishVideo(role: MediaRole): boolean {
   return role === 'host' || role === 'moderator' || role === 'speaker';
 }
 
@@ -37,6 +44,7 @@ export function deriveRoomMediaSessionDecision(
   }
 
   const mayPublishAudio = mayMediaRolePublishAudio(participant.role);
+  const mayPublishVideo = mayMediaRolePublishVideo(participant.role);
   return {
     authorityStatus: state.status,
     authoritySequence: state.room.sequence,
@@ -44,7 +52,10 @@ export function deriveRoomMediaSessionDecision(
     shouldJoinSfu: true,
     shouldLeaveSfu: false,
     mayPublishAudio,
-    mustUnpublish: !mayPublishAudio
+    mayPublishVideo,
+    mustUnpublishAudio: !mayPublishAudio,
+    mustUnpublishVideo: !mayPublishVideo,
+    mustUnpublish: !mayPublishAudio || !mayPublishVideo
   };
 }
 
@@ -58,6 +69,9 @@ function failClosedDecision(
     shouldJoinSfu: false,
     shouldLeaveSfu: true,
     mayPublishAudio: false,
+    mayPublishVideo: false,
+    mustUnpublishAudio: true,
+    mustUnpublishVideo: true,
     mustUnpublish: true
   };
 }

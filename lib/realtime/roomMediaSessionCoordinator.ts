@@ -2,7 +2,9 @@ import {
   deriveRoomMediaSessionDecision,
   initialRoomBrainClientSyncState,
   type MediaRole,
+  type MediaJoinAuthorization,
   type RealtimeMediaProvider,
+  type RequestMediaJoinAuthorization,
   type RoomBrainClientSyncState,
   type RoomId,
   type RoomMediaSessionDecision,
@@ -23,28 +25,32 @@ export interface RoomMediaSessionCoordinatorState {
   joinedRole: MediaRole | null;
   microphoneRequested: boolean;
   microphoneEnabled: boolean;
+  cameraRequested: boolean;
+  cameraEnabled: boolean;
   lastError: string | null;
 }
 
 export interface RoomMediaSessionCoordinatorOptions {
   roomId: RoomId;
   userId: UserId;
-  token: string;
   provider: RealtimeMediaProvider;
+  requestJoinAuthorization: RequestMediaJoinAuthorization;
+  now?: () => number;
   onStateChange?: (state: RoomMediaSessionCoordinatorState) => void;
   onError?: (error: Error) => void;
 }
 
 /**
- * The only application-layer owner of SFU join/leave and microphone mutation.
- * Room Brain synchronization and role state are its authority; local microphone
+ * The only application-layer owner of SFU join/leave and local publication.
+ * Room Brain synchronization and role state are its authority; local device
  * intent can narrow that authority but can never expand it.
  */
 export class RoomMediaSessionCoordinator {
   private readonly roomId: RoomId;
   private readonly userId: UserId;
-  private readonly token: string;
   private readonly provider: RealtimeMediaProvider;
+  private readonly requestJoinAuthorization: RequestMediaJoinAuthorization;
+  private readonly now: () => number;
   private readonly onStateChange?: (state: RoomMediaSessionCoordinatorState) => void;
   private readonly onError?: (error: Error) => void;
 
@@ -53,6 +59,8 @@ export class RoomMediaSessionCoordinator {
   private joinedRole: MediaRole | null = null;
   private microphoneRequested = false;
   private microphoneEnabled = false;
+  private cameraRequested = false;
+  private cameraEnabled = false;
   private lastError: string | null = null;
   private stopped = false;
   private desiredRevision = 0;
@@ -62,12 +70,15 @@ export class RoomMediaSessionCoordinator {
   constructor(options: RoomMediaSessionCoordinatorOptions) {
     if (!options.roomId.trim()) throw new Error("roomId is required");
     if (!options.userId.trim()) throw new Error("userId is required");
-    if (!options.token.trim()) throw new Error("media token is required");
+    if (typeof options.requestJoinAuthorization !== "function") {
+      throw new Error("requestJoinAuthorization is required");
+    }
 
     this.roomId = options.roomId;
     this.userId = options.userId;
-    this.token = options.token;
     this.provider = options.provider;
+    this.requestJoinAuthorization = options.requestJoinAuthorization;
+    this.now = options.now ?? Date.now;
     this.onStateChange = options.onStateChange;
     this.onError = options.onError;
     this.decision = deriveRoomMediaSessionDecision(
@@ -83,6 +94,8 @@ export class RoomMediaSessionCoordinator {
       joinedRole: this.joinedRole,
       microphoneRequested: this.microphoneRequested,
       microphoneEnabled: this.microphoneEnabled,
+      cameraRequested: this.cameraRequested,
+      cameraEnabled: this.cameraEnabled,
       lastError: this.lastError,
     };
   }
@@ -97,6 +110,13 @@ export class RoomMediaSessionCoordinator {
     if (this.stopped) return;
     if (this.microphoneRequested === enabled) return;
     this.microphoneRequested = enabled;
+    this.requestReconciliation();
+  }
+
+  setCameraRequested(enabled: boolean): void {
+    if (this.stopped) return;
+    if (this.cameraRequested === enabled) return;
+    this.cameraRequested = enabled;
     this.requestReconciliation();
   }
 
@@ -143,7 +163,7 @@ export class RoomMediaSessionCoordinator {
       let progressed: boolean;
 
       try {
-        progressed = await this.reconcileOneStep();
+        progressed = await this.reconcileOneStep(revision);
       } catch (error) {
         this.settledRevision = revision;
         this.phase = "error";
@@ -166,7 +186,7 @@ export class RoomMediaSessionCoordinator {
     }
   }
 
-  private async reconcileOneStep(): Promise<boolean> {
+  private async reconcileOneStep(revision: number): Promise<boolean> {
     const shouldJoin = !this.stopped && this.decision.shouldJoinSfu;
 
     if (!shouldJoin) {
@@ -183,7 +203,7 @@ export class RoomMediaSessionCoordinator {
     }
 
     if (!this.joinedRole) {
-      await this.joinCurrentSession(desiredRole);
+      await this.joinCurrentSession(desiredRole, revision);
       return true;
     }
 
@@ -199,21 +219,64 @@ export class RoomMediaSessionCoordinator {
       return true;
     }
 
+    const shouldEnableCamera =
+      this.cameraRequested && this.decision.mayPublishVideo;
+    if (this.cameraEnabled !== shouldEnableCamera) {
+      await this.setProviderCameraEnabled(shouldEnableCamera);
+      return true;
+    }
+
     return false;
   }
 
-  private async joinCurrentSession(role: MediaRole): Promise<void> {
+  private async joinCurrentSession(
+    role: MediaRole,
+    revision: number
+  ): Promise<void> {
+    const authoritySequence = this.decision.authoritySequence;
+    if (authoritySequence === null) {
+      throw new Error("Room Brain allowed an SFU join without an authority sequence");
+    }
+
     this.phase = "joining";
     this.emitState();
+    let authorization: MediaJoinAuthorization;
+    try {
+      authorization = await this.requestJoinAuthorization({
+        roomId: this.roomId,
+        userId: this.userId,
+        role,
+        authoritySequence,
+      });
+    } catch (error) {
+      if (
+        revision !== this.desiredRevision ||
+        !this.isJoinStillAuthorized(role, authoritySequence)
+      ) {
+        return;
+      }
+      throw error;
+    }
+
+    if (
+      revision !== this.desiredRevision ||
+      !this.isJoinStillAuthorized(role, authoritySequence)
+    ) {
+      return;
+    }
+
+    this.assertValidJoinAuthorization(authorization, role, authoritySequence);
     await this.provider.join({
       roomId: this.roomId,
       userId: this.userId,
       role,
-      token: this.token,
+      token: authorization.token,
       initialMicrophoneEnabled: false,
+      initialCameraEnabled: false,
     });
     this.joinedRole = role;
     this.microphoneEnabled = false;
+    this.cameraEnabled = false;
     this.lastError = null;
     this.emitState();
   }
@@ -222,13 +285,22 @@ export class RoomMediaSessionCoordinator {
     this.phase = "leaving";
     this.emitState();
 
-    let muteError: Error | null = null;
+    const publicationErrors: Error[] = [];
     if (this.microphoneEnabled) {
       try {
         await this.provider.setMicrophoneEnabled(false);
         this.microphoneEnabled = false;
       } catch (error) {
-        muteError = asError(error);
+        publicationErrors.push(asError(error));
+      }
+    }
+
+    if (this.cameraEnabled) {
+      try {
+        await this.provider.setCameraEnabled(false);
+        this.cameraEnabled = false;
+      } catch (error) {
+        publicationErrors.push(asError(error));
       }
     }
 
@@ -236,19 +308,20 @@ export class RoomMediaSessionCoordinator {
       await this.provider.leave();
       this.joinedRole = null;
       this.microphoneEnabled = false;
+      this.cameraEnabled = false;
       this.lastError = null;
     } catch (error) {
       const leaveError = asError(error);
-      if (muteError) {
+      if (publicationErrors.length > 0) {
         throw new AggregateError(
-          [muteError, leaveError],
+          [...publicationErrors, leaveError],
           "Unable to fail closed or leave the media session"
         );
       }
       throw leaveError;
     }
 
-    if (muteError) this.reportError(muteError);
+    for (const error of publicationErrors) this.reportError(error);
     this.emitState();
   }
 
@@ -257,6 +330,49 @@ export class RoomMediaSessionCoordinator {
     this.microphoneEnabled = enabled;
     this.lastError = null;
     this.emitState();
+  }
+
+  private async setProviderCameraEnabled(enabled: boolean): Promise<void> {
+    await this.provider.setCameraEnabled(enabled);
+    this.cameraEnabled = enabled;
+    this.lastError = null;
+    this.emitState();
+  }
+
+  private isJoinStillAuthorized(
+    role: MediaRole,
+    authoritySequence: number
+  ): boolean {
+    return (
+      !this.stopped &&
+      this.decision.shouldJoinSfu &&
+      this.decision.role === role &&
+      this.decision.authoritySequence === authoritySequence
+    );
+  }
+
+  private assertValidJoinAuthorization(
+    authorization: MediaJoinAuthorization,
+    role: MediaRole,
+    authoritySequence: number
+  ): void {
+    if (
+      authorization.roomId !== this.roomId ||
+      authorization.userId !== this.userId ||
+      authorization.role !== role ||
+      authorization.authoritySequence !== authoritySequence
+    ) {
+      throw new Error("Media join authorization does not match Room Brain authority");
+    }
+    if (!authorization.token.trim()) {
+      throw new Error("Media join authorization token is required");
+    }
+    if (
+      !Number.isFinite(authorization.expiresAt) ||
+      authorization.expiresAt <= this.now()
+    ) {
+      throw new Error("Media join authorization is expired");
+    }
   }
 
   private reportError(error: Error): void {

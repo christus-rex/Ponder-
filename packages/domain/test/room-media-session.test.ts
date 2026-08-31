@@ -10,21 +10,27 @@ import {
 const publishRoles: MediaRole[] = ['host', 'moderator', 'speaker'];
 
 for (const role of publishRoles) {
-  test(`${role} may publish audio from authoritative Room Brain state`, () => {
+  test(`${role} may publish audio and video from authoritative Room Brain state`, () => {
     const decision = deriveRoomMediaSessionDecision(synchronized(role), 'user-1');
 
     assert.equal(decision.shouldJoinSfu, true);
     assert.equal(decision.mayPublishAudio, true);
+    assert.equal(decision.mayPublishVideo, true);
+    assert.equal(decision.mustUnpublishAudio, false);
+    assert.equal(decision.mustUnpublishVideo, false);
     assert.equal(decision.mustUnpublish, false);
     assert.equal(decision.role, role);
   });
 }
 
-test('viewer joins subscribe-only and cannot publish audio', () => {
+test('viewer joins subscribe-only and cannot publish audio or video', () => {
   const decision = deriveRoomMediaSessionDecision(synchronized('viewer'), 'user-1');
 
   assert.equal(decision.shouldJoinSfu, true);
   assert.equal(decision.mayPublishAudio, false);
+  assert.equal(decision.mayPublishVideo, false);
+  assert.equal(decision.mustUnpublishAudio, true);
+  assert.equal(decision.mustUnpublishVideo, true);
   assert.equal(decision.mustUnpublish, true);
 });
 
@@ -48,6 +54,9 @@ test('awaiting and resync states fail closed even when stale room data had a spe
     assert.equal(decision.shouldJoinSfu, false);
     assert.equal(decision.shouldLeaveSfu, true);
     assert.equal(decision.mayPublishAudio, false);
+    assert.equal(decision.mayPublishVideo, false);
+    assert.equal(decision.mustUnpublishAudio, true);
+    assert.equal(decision.mustUnpublishVideo, true);
     assert.equal(decision.mustUnpublish, true);
     assert.equal(decision.authoritySequence, null);
   }
