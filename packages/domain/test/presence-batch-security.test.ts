@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 const migration = readFileSync(
-  'supabase/migrations/20260831130000_presence_batch_scope.sql',
+  'supabase/migrations/20260831130313_presence_batch_scope.sql',
   'utf8'
 );
 const discoverPage = readFileSync('app/discover/page.tsx', 'utf8');
