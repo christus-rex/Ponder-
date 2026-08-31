@@ -43,8 +43,10 @@ test("media session endpoint persists provider participant IDs but does not retu
     /providerParticipantId: credentials\.providerParticipantId/i,
   );
   const responseBlock = mediaSessionRoute.match(
-    /return NextResponse\.json\([\s\S]*?participantToken: credentials\.participantToken[\s\S]*?expiresAt: credentials\.expiresAt[\s\S]*?\);/i,
+    /const publicCredentials = \{[\s\S]*?\};[\s\S]*?return NextResponse\.json\(publicCredentials/i,
   )?.[0];
   assert.ok(responseBlock);
+  assert.match(responseBlock, /participantToken: credentials\.participantToken/i);
+  assert.match(responseBlock, /expiresAt: credentials\.expiresAt/i);
   assert.doesNotMatch(responseBlock, /providerParticipantId/);
 });
