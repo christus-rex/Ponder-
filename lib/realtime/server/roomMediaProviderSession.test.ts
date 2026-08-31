@@ -21,21 +21,40 @@ function tracked(
   };
 }
 
+function storeBase(
+  overrides: Partial<RoomMediaProviderSessionStore> = {},
+): RoomMediaProviderSessionStore {
+  return {
+    async registerActiveSession() {
+      return [];
+    },
+    async isCurrentSession() {
+      return true;
+    },
+    async listActiveRoomSessions() {
+      return [];
+    },
+    async markRevoked() {},
+    ...overrides,
+  };
+}
+
 describe("replaceTrackedMediaProviderSession", () => {
-  it("revokes the previous participant before persisting a replacement", async () => {
+  it("registers the new generation, revokes prior handles, then verifies it is still current", async () => {
     const events: string[] = [];
-    const store: RoomMediaProviderSessionStore = {
-      async getActiveUserSession() {
-        return tracked({ providerParticipantId: "participant-old" });
+    const store = storeBase({
+      async registerActiveSession(session) {
+        events.push(`register:${session.providerParticipantId}`);
+        return ["participant-old"];
       },
-      async upsertActiveSession(session) {
-        events.push(`store:${session.providerParticipantId}`);
+      async markRevoked(_roomId, _userId, participantId) {
+        events.push(`marked:${participantId}`);
       },
-      async listActiveRoomSessions() {
-        return [];
+      async isCurrentSession(_roomId, _userId, participantId) {
+        events.push(`current:${participantId}`);
+        return true;
       },
-      async markRevoked() {},
-    };
+    });
     const revoker: MediaProviderParticipantRevoker = {
       async revokeParticipant(_roomId, participantId) {
         events.push(`revoke:${participantId}`);
@@ -45,26 +64,21 @@ describe("replaceTrackedMediaProviderSession", () => {
     await replaceTrackedMediaProviderSession(store, revoker, tracked());
 
     expect(events).toEqual([
+      "register:participant-new",
       "revoke:participant-old",
-      "store:participant-new",
+      "marked:participant-old",
+      "current:participant-new",
     ]);
   });
 
-  it("revokes the newly-created participant when persistence fails", async () => {
+  it("revokes an untracked newly-created participant when serialized registration fails", async () => {
     const events: string[] = [];
-    const store: RoomMediaProviderSessionStore = {
-      async getActiveUserSession() {
-        return null;
-      },
-      async upsertActiveSession() {
-        events.push("store:failed");
+    const store = storeBase({
+      async registerActiveSession() {
+        events.push("register:failed");
         throw new Error("database unavailable");
       },
-      async listActiveRoomSessions() {
-        return [];
-      },
-      async markRevoked() {},
-    };
+    });
     const revoker: MediaProviderParticipantRevoker = {
       async revokeParticipant(_roomId, participantId) {
         events.push(`revoke:${participantId}`);
@@ -76,25 +90,21 @@ describe("replaceTrackedMediaProviderSession", () => {
     ).rejects.toThrow("database unavailable");
 
     expect(events).toEqual([
-      "store:failed",
+      "register:failed",
       "revoke:participant-new",
     ]);
   });
 
-  it("does not persist a replacement when the prior participant cannot be revoked", async () => {
+  it("compensates the new tracked participant when an older participant cannot be revoked", async () => {
     const events: string[] = [];
-    const store: RoomMediaProviderSessionStore = {
-      async getActiveUserSession() {
-        return tracked({ providerParticipantId: "participant-old" });
+    const store = storeBase({
+      async registerActiveSession() {
+        return ["participant-old"];
       },
-      async upsertActiveSession() {
-        events.push("store:new");
+      async markRevoked(_roomId, _userId, participantId) {
+        events.push(`marked:${participantId}`);
       },
-      async listActiveRoomSessions() {
-        return [];
-      },
-      async markRevoked() {},
-    };
+    });
     const revoker: MediaProviderParticipantRevoker = {
       async revokeParticipant(_roomId, participantId) {
         events.push(`revoke:${participantId}`);
@@ -111,22 +121,44 @@ describe("replaceTrackedMediaProviderSession", () => {
     expect(events).toEqual([
       "revoke:participant-old",
       "revoke:participant-new",
+      "marked:participant-new",
+    ]);
+  });
+
+  it("does not deliver a participant that a concurrent registration already superseded", async () => {
+    const events: string[] = [];
+    const store = storeBase({
+      async isCurrentSession() {
+        events.push("current:false");
+        return false;
+      },
+      async markRevoked(_roomId, _userId, participantId) {
+        events.push(`marked:${participantId}`);
+      },
+    });
+    const revoker: MediaProviderParticipantRevoker = {
+      async revokeParticipant(_roomId, participantId) {
+        events.push(`revoke:${participantId}`);
+      },
+    };
+
+    await expect(
+      replaceTrackedMediaProviderSession(store, revoker, tracked()),
+    ).rejects.toThrow("superseded before delivery");
+
+    expect(events).toEqual([
+      "current:false",
+      "revoke:participant-new",
+      "marked:participant-new",
     ]);
   });
 
   it("surfaces compensation failure rather than returning an untracked participant", async () => {
-    const store: RoomMediaProviderSessionStore = {
-      async getActiveUserSession() {
-        return null;
-      },
-      async upsertActiveSession() {
+    const store = storeBase({
+      async registerActiveSession() {
         throw new Error("database unavailable");
       },
-      async listActiveRoomSessions() {
-        return [];
-      },
-      async markRevoked() {},
-    };
+    });
     const revoker: MediaProviderParticipantRevoker = {
       async revokeParticipant() {
         throw new Error("provider unavailable");
@@ -146,11 +178,7 @@ describe("revokeTrackedMediaSessionsForRoom", () => {
       tracked({ userId: "user-1", providerParticipantId: "participant-1" }),
       tracked({ userId: "user-2", providerParticipantId: "participant-2" }),
     ];
-    const store: RoomMediaProviderSessionStore = {
-      async getActiveUserSession() {
-        return null;
-      },
-      async upsertActiveSession() {},
+    const store = storeBase({
       async listActiveRoomSessions(roomId) {
         expect(roomId).toBe("room-1");
         return sessions;
@@ -158,7 +186,7 @@ describe("revokeTrackedMediaSessionsForRoom", () => {
       async markRevoked(_roomId, userId, participantId) {
         events.push(`marked:${userId}:${participantId}`);
       },
-    };
+    });
     const revoker: MediaProviderParticipantRevoker = {
       async revokeParticipant(_roomId, participantId) {
         events.push(`revoked:${participantId}`);
@@ -179,18 +207,14 @@ describe("revokeTrackedMediaSessionsForRoom", () => {
 
   it("does not mark a participant revoked when provider deletion fails", async () => {
     const events: string[] = [];
-    const store: RoomMediaProviderSessionStore = {
-      async getActiveUserSession() {
-        return null;
-      },
-      async upsertActiveSession() {},
+    const store = storeBase({
       async listActiveRoomSessions() {
         return [tracked()];
       },
       async markRevoked() {
         events.push("marked");
       },
-    };
+    });
     const revoker: MediaProviderParticipantRevoker = {
       async revokeParticipant() {
         events.push("revoke-failed");
