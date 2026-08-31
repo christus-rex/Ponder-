@@ -97,21 +97,7 @@ export async function revokeTrackedMediaSessionsForUser(
     normalizedUserId,
   );
 
-  let revoked = 0;
-  for (const session of sessions) {
-    await revoker.revokeParticipant(
-      normalizedRoomId,
-      session.providerParticipantId,
-    );
-    await store.markRevoked(
-      normalizedRoomId,
-      normalizedUserId,
-      session.providerParticipantId,
-    );
-    revoked += 1;
-  }
-
-  return revoked;
+  return revokeTrackedSessionsBestEffort(store, revoker, sessions);
 }
 
 export async function revokeTrackedMediaSessionsForRoom(
@@ -122,18 +108,39 @@ export async function revokeTrackedMediaSessionsForRoom(
   const normalizedRoomId = normalizeId(roomId, "Room ID");
   const sessions = await store.listActiveRoomSessions(normalizedRoomId);
 
+  return revokeTrackedSessionsBestEffort(store, revoker, sessions);
+}
+
+async function revokeTrackedSessionsBestEffort(
+  store: RoomMediaProviderSessionStore,
+  revoker: MediaProviderParticipantRevoker,
+  sessions: TrackedMediaProviderSession[],
+): Promise<number> {
   let revoked = 0;
+  const failures: unknown[] = [];
+
   for (const session of sessions) {
-    await revoker.revokeParticipant(
-      normalizedRoomId,
-      session.providerParticipantId,
+    try {
+      await revoker.revokeParticipant(
+        session.roomId,
+        session.providerParticipantId,
+      );
+      await store.markRevoked(
+        session.roomId,
+        session.userId,
+        session.providerParticipantId,
+      );
+      revoked += 1;
+    } catch (error) {
+      failures.push(error);
+    }
+  }
+
+  if (failures.length > 0) {
+    throw new AggregateError(
+      failures,
+      `Unable to revoke ${failures.length} tracked provider media session(s); reconciliation required`,
     );
-    await store.markRevoked(
-      normalizedRoomId,
-      session.userId,
-      session.providerParticipantId,
-    );
-    revoked += 1;
   }
 
   return revoked;
