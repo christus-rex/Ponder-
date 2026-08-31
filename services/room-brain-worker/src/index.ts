@@ -413,11 +413,15 @@ export class RoomBrainDurableObject extends DurableObject<Env> {
 
   private closeParticipantSockets(userId: string): void {
     for (const socket of this.ctx.getWebSockets()) {
-      const connection = socket.deserializeAttachment() as
+      // Cloudflare's DurableObjectState.getWebSockets() return type is the
+      // standard WebSocket surface even though hibernation attachments are
+      // available at runtime on those same sockets.
+      const hibernatingSocket = socket as unknown as HibernatingWebSocket;
+      const connection = hibernatingSocket.deserializeAttachment() as
         | ConnectionAttachment
         | null;
       if (connection?.userId === userId) {
-        socket.close(4003, "Ejected from room");
+        hibernatingSocket.close(4003, "Ejected from room");
       }
     }
   }
