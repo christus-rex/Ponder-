@@ -272,7 +272,7 @@ preview -> join -> active -> leave
 - [x] discovery surface
 - [x] deterministic resonance scorer
 - [x] rank discovery candidates with scorer
-- [ ] log privacy-safe discovery outcomes
+- [x] log privacy-safe discovery outcomes
 - [ ] add presence/availability signal
 
 ### Phase B — relationship continuity
@@ -340,10 +340,6 @@ Guardrails:
 
 ## Next implementation target
 
-Wire Resonance v1 into the server-rendered discovery page, fetch a broader eligible candidate pool, rank it, and expose a short human-readable reason such as:
+Add presence/availability as a **bounded ranking signal** without allowing it to overwhelm intent and interest compatibility. Presence should answer "who can genuinely talk now?" while keeping the deterministic Resonance v1 score auditable.
 
-- "Both here for deep conversation"
-- "Talk pairs well with listen"
-- "Shared: philosophy, music"
-
-That makes the differentiation visible immediately while remaining explainable and testable.
+After that, wire outcome events into real profile, room, connection, block, and report transitions so telemetry reflects verified product actions rather than only impression exposure.
