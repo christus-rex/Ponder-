@@ -14,7 +14,11 @@ const onboarding = readFileSync(
   'supabase/migrations/20260830202500_onboarding_preferences.sql',
   'utf8'
 );
-const sql = foundation + '\n' + hardening + '\n' + onboarding;
+const telemetry = readFileSync(
+  'supabase/migrations/20260831011500_resonance_telemetry.sql',
+  'utf8'
+);
+const sql = foundation + '\n' + hardening + '\n' + onboarding + '\n' + telemetry;
 
 test('18+ eligibility is enforced during signup and in private account data', () => {
   assert.match(
@@ -104,7 +108,10 @@ test('all core user-facing tables enable row-level security', () => {
     'wallet_links',
     'ledger_accounts',
     'ledger_entries',
-    'ledger_postings'
+    'ledger_postings',
+    'discovery_impression_batches',
+    'discovery_impressions',
+    'discovery_outcomes'
   ]) {
     assert.match(
       sql,
@@ -153,5 +160,55 @@ test('new users receive a private preferences row', () => {
   assert.match(
     onboarding,
     /insert into public\.user_preferences \(id\)[\s\S]*values \(new\.id\)/i
+  );
+});
+
+
+test('resonance telemetry tables are closed to direct client access', () => {
+  for (const table of [
+    'discovery_impression_batches',
+    'discovery_impressions',
+    'discovery_outcomes'
+  ]) {
+    assert.match(
+      telemetry,
+      new RegExp(`revoke all on public\\.${table} from anon, authenticated`, 'i')
+    );
+  }
+});
+
+test('impression RPC derives viewer identity and constrains analytics shape', () => {
+  assert.match(telemetry, /viewer uuid := auth\.uid\(\)/i);
+  assert.match(telemetry, /candidate_count < 1 or candidate_count > 12/i);
+  assert.match(telemetry, /viewer = any\(p_candidate_ids\)/i);
+  assert.match(telemetry, /score < 0 or score > 100/i);
+  assert.match(telemetry, /All discovery candidates must be active, onboarded profiles/i);
+  assert.match(
+    telemetry,
+    /grant execute on function public\.record_resonance_impression_batch\(uuid\[\], smallint\[\], text\[\]\)[\s\S]*to authenticated/i
+  );
+});
+
+test('outcome RPC resolves an owned impression from batch plus candidate', () => {
+  assert.match(
+    telemetry,
+    /where di\.batch_id = p_batch_id[\s\S]*di\.candidate_id = p_candidate_id/i
+  );
+  assert.match(
+    telemetry,
+    /stored_viewer is null or stored_viewer <> viewer/i
+  );
+  assert.match(telemetry, /on conflict do nothing/i);
+});
+
+test('resonance telemetry stores structured signals rather than conversation content', () => {
+  const tableDefinitions = telemetry
+    .split(/create table public\./i)
+    .filter((chunk) => /^discovery_(impression_batches|impressions|outcomes)/i.test(chunk))
+    .join('\n');
+
+  assert.doesNotMatch(
+    tableDefinitions,
+    /\b(message|body|caption|transcript|audio|video|bio|interests|search_text)\b/i
   );
 });
