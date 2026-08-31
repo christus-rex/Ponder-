@@ -30,6 +30,8 @@ export function assertRoomBrainCommandAuthorized(
     case 'react':
       assertSameUser(identity, command.userId);
       return;
+    case 'demote_speaker':
+      throw new Error('Speaker demotion requires trusted backend moderation');
     case 'grant_seat':
     case 'set_room_lock':
       assertSameUser(identity, command.actorUserId);
