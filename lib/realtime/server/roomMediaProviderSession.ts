@@ -11,11 +11,14 @@ export interface TrackedMediaProviderSession {
 }
 
 export interface RoomMediaProviderSessionStore {
-  getActiveUserSession(
+  registerActiveSession(
+    session: TrackedMediaProviderSession,
+  ): Promise<string[]>;
+  isCurrentSession(
     roomId: string,
     userId: string,
-  ): Promise<TrackedMediaProviderSession | null>;
-  upsertActiveSession(session: TrackedMediaProviderSession): Promise<void>;
+    providerParticipantId: string,
+  ): Promise<boolean>;
   listActiveRoomSessions(roomId: string): Promise<TrackedMediaProviderSession[]>;
   markRevoked(
     roomId: string,
@@ -29,12 +32,12 @@ export interface MediaProviderParticipantRevoker {
 }
 
 /**
- * Replaces the one server-tracked provider participant for a room/user.
+ * Registers a newly-created provider participant as the current session for a
+ * room/user and then revokes every previously tracked unrevoked participant.
  *
- * The new provider participant already exists when this function is called.
- * Any previous participant is revoked before the new handle is committed.
- * If persistence fails, the new participant is revoked so an untracked active
- * provider session is never returned to the browser.
+ * Database registration is serialized per room/user. Historical participant
+ * handles remain stored until provider deletion is confirmed, so concurrent
+ * exchanges cannot make an older active participant untrackable.
  */
 export async function replaceTrackedMediaProviderSession(
   store: RoomMediaProviderSessionStore,
@@ -43,27 +46,37 @@ export async function replaceTrackedMediaProviderSession(
 ): Promise<void> {
   validateSession(session);
 
-  const previous = await store.getActiveUserSession(session.roomId, session.userId);
-  if (
-    previous &&
-    previous.providerParticipantId !== session.providerParticipantId
-  ) {
+  let previousParticipantIds: string[];
+  try {
+    previousParticipantIds = await store.registerActiveSession(session);
+  } catch (error) {
+    await compensateUntrackedParticipant(revoker, session);
+    throw error;
+  }
+
+  for (const previousParticipantId of previousParticipantIds) {
+    if (previousParticipantId === session.providerParticipantId) continue;
     try {
-      await revoker.revokeParticipant(
-        previous.roomId,
-        previous.providerParticipantId,
+      await revoker.revokeParticipant(session.roomId, previousParticipantId);
+      await store.markRevoked(
+        session.roomId,
+        session.userId,
+        previousParticipantId,
       );
     } catch (error) {
-      await compensateNewParticipant(revoker, session);
+      await compensateTrackedParticipant(store, revoker, session);
       throw error;
     }
   }
 
-  try {
-    await store.upsertActiveSession(session);
-  } catch (error) {
-    await compensateNewParticipant(revoker, session);
-    throw error;
+  const isCurrent = await store.isCurrentSession(
+    session.roomId,
+    session.userId,
+    session.providerParticipantId,
+  );
+  if (!isCurrent) {
+    await compensateTrackedParticipant(store, revoker, session);
+    throw new Error("Provider media session was superseded before delivery");
   }
 }
 
@@ -96,30 +109,46 @@ export function createSupabaseRoomMediaProviderSessionStore(
   adminClient: SupabaseClient,
 ): RoomMediaProviderSessionStore {
   return {
-    async getActiveUserSession(roomId, userId) {
-      return readActiveUserSession(adminClient, roomId, userId);
-    },
-
-    async upsertActiveSession(session) {
-      const { error } = await adminClient
-        .from("room_media_provider_sessions")
-        .upsert(
-          {
-            room_id: session.roomId,
-            user_id: session.userId,
-            provider: "realtimekit",
-            provider_participant_id: session.providerParticipantId,
-            authority_sequence: session.authoritySequence,
-            role: session.role,
-            expires_at: new Date(session.expiresAt * 1000).toISOString(),
-            revoked_at: null,
-          },
-          { onConflict: "room_id,user_id" },
-        );
+    async registerActiveSession(session) {
+      const { data, error } = await adminClient.rpc(
+        "register_room_media_provider_session",
+        {
+          p_room_id: session.roomId,
+          p_user_id: session.userId,
+          p_provider_participant_id: session.providerParticipantId,
+          p_authority_sequence: session.authoritySequence,
+          p_role: session.role,
+          p_expires_at: new Date(session.expiresAt * 1000).toISOString(),
+        },
+      );
 
       if (error) {
         throw new Error("Unable to persist provider media revocation handle");
       }
+      if (
+        !Array.isArray(data) ||
+        data.some((value) => typeof value !== "string" || !value.trim())
+      ) {
+        throw new Error("Provider media session registration returned invalid data");
+      }
+      return data as string[];
+    },
+
+    async isCurrentSession(roomId, userId, providerParticipantId) {
+      const { data, error } = await adminClient
+        .from("room_media_provider_sessions")
+        .select("id")
+        .eq("room_id", roomId)
+        .eq("user_id", userId)
+        .eq("provider_participant_id", providerParticipantId)
+        .eq("is_current", true)
+        .is("revoked_at", null)
+        .maybeSingle();
+
+      if (error) {
+        throw new Error("Unable to verify current provider media session");
+      }
+      return Boolean(data?.id);
     },
 
     async listActiveRoomSessions(roomId) {
@@ -130,16 +159,16 @@ export function createSupabaseRoomMediaProviderSessionStore(
         )
         .eq("room_id", roomId)
         .is("revoked_at", null)
-        .limit(64);
+        .limit(97);
 
       if (error) {
         throw new Error("Unable to list active provider media sessions");
       }
 
       const sessions = (data ?? []).map(decodeSession);
-      if (sessions.length > 24) {
-        // Ponder rooms cap at 24 users and the table tracks one participant per
-        // room/user. More rows indicate invariant drift that must not be hidden.
+      if (sessions.length > 96) {
+        // 24 room participants × the Room Brain four-connection bound. More
+        // unrevoked handles indicate invariant drift that requires repair.
         throw new Error("Provider media session registry exceeded room bound");
       }
       return sessions;
@@ -148,60 +177,69 @@ export function createSupabaseRoomMediaProviderSessionStore(
     async markRevoked(roomId, userId, providerParticipantId) {
       const { data, error } = await adminClient
         .from("room_media_provider_sessions")
-        .update({ revoked_at: new Date().toISOString() })
+        .update({
+          revoked_at: new Date().toISOString(),
+          is_current: false,
+        })
         .eq("room_id", roomId)
         .eq("user_id", userId)
         .eq("provider_participant_id", providerParticipantId)
         .is("revoked_at", null)
-        .select("room_id")
+        .select("id")
         .maybeSingle();
 
       if (error) {
         throw new Error("Unable to mark provider media session revoked");
       }
-      if (!data?.room_id) {
-        // A repeated cleanup may encounter an already-revoked row. Re-read the
-        // active session so stale cleanup cannot mark a newer replacement.
-        const active = await readActiveUserSession(adminClient, roomId, userId);
-        if (
-          active &&
-          active.providerParticipantId !== providerParticipantId
-        ) {
-          throw new Error("Provider media session changed during revocation");
-        }
+      if (data?.id) return;
+
+      const { data: existing, error: existingError } = await adminClient
+        .from("room_media_provider_sessions")
+        .select("revoked_at")
+        .eq("room_id", roomId)
+        .eq("user_id", userId)
+        .eq("provider_participant_id", providerParticipantId)
+        .maybeSingle();
+
+      if (existingError) {
+        throw new Error("Unable to verify provider media revocation state");
+      }
+      if (existing && existing.revoked_at === null) {
+        throw new Error("Provider media session remained active after revocation");
       }
     },
   };
 }
 
-async function readActiveUserSession(
-  adminClient: SupabaseClient,
-  roomId: string,
-  userId: string,
-): Promise<TrackedMediaProviderSession | null> {
-  const { data, error } = await adminClient
-    .from("room_media_provider_sessions")
-    .select(
-      "room_id,user_id,provider_participant_id,authority_sequence,role,expires_at",
-    )
-    .eq("room_id", roomId)
-    .eq("user_id", userId)
-    .is("revoked_at", null)
-    .maybeSingle();
-
-  if (error) {
-    throw new Error("Unable to read active provider media session");
-  }
-  return data ? decodeSession(data) : null;
-}
-
-async function compensateNewParticipant(
+async function compensateUntrackedParticipant(
   revoker: MediaProviderParticipantRevoker,
   session: TrackedMediaProviderSession,
 ): Promise<void> {
   try {
     await revoker.revokeParticipant(
       session.roomId,
+      session.providerParticipantId,
+    );
+  } catch {
+    throw new Error(
+      "Provider media session compensation failed; manual cleanup required",
+    );
+  }
+}
+
+async function compensateTrackedParticipant(
+  store: RoomMediaProviderSessionStore,
+  revoker: MediaProviderParticipantRevoker,
+  session: TrackedMediaProviderSession,
+): Promise<void> {
+  try {
+    await revoker.revokeParticipant(
+      session.roomId,
+      session.providerParticipantId,
+    );
+    await store.markRevoked(
+      session.roomId,
+      session.userId,
       session.providerParticipantId,
     );
   } catch {
