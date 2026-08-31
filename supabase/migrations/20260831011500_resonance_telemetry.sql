@@ -6,7 +6,7 @@ language sql
 stable
 security definer
 set search_path = ''
-as $
+as $$
   select exists (
     select 1
     from public.profiles p
@@ -15,7 +15,7 @@ as $
       and p.onboarding_completed_at is not null
       and ua.account_status = 'active'::public.account_status
   );
-$;
+$$;
 
 revoke execute on function public.profile_is_discoverable(uuid) from public, anon;
 grant execute on function public.profile_is_discoverable(uuid) to authenticated;
