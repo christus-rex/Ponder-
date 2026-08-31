@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { PresenceHeartbeat } from "@/components/PresenceHeartbeat";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { requestConnection } from "../actions";
 
 type PersonPageProps = {
@@ -51,11 +52,11 @@ export default async function PersonPage({ params, searchParams }: PersonPagePro
 
   const batchId = isUuid(query.batch) ? query.batch : null;
   if (batchId) {
-    await supabase.rpc("record_resonance_outcome", {
+    const admin = createAdminClient();
+    await admin.rpc("record_profile_opened_for_user", {
+      p_viewer_id: userData.user.id,
       p_batch_id: batchId,
       p_candidate_id: userId,
-      p_outcome_kind: "profile_opened",
-      p_room_id: null,
     });
   }
 
