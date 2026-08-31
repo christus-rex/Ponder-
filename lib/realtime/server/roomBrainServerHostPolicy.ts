@@ -5,6 +5,33 @@ export function roomBrainMediaGrantUrl(
   roomId: string,
   allowedHosts: readonly string[] = [],
 ): string {
+  return roomBrainServerHttpUrl(
+    websocketBase,
+    roomId,
+    "media-grant",
+    allowedHosts,
+  );
+}
+
+export function roomBrainModerationActionUrl(
+  websocketBase: string,
+  roomId: string,
+  allowedHosts: readonly string[] = [],
+): string {
+  return roomBrainServerHttpUrl(
+    websocketBase,
+    roomId,
+    "moderation-action",
+    allowedHosts,
+  );
+}
+
+function roomBrainServerHttpUrl(
+  websocketBase: string,
+  roomId: string,
+  action: "media-grant" | "moderation-action",
+  allowedHosts: readonly string[],
+): string {
   const url = new URL(websocketBase);
   const production = process.env.NODE_ENV === "production";
 
@@ -31,7 +58,8 @@ export function roomBrainMediaGrantUrl(
 
   url.username = "";
   url.password = "";
-  url.pathname = `${url.pathname.replace(/\/$/, "")}/rooms/${encodeURIComponent(roomId)}/media-grant`;
+  url.pathname =
+    `${url.pathname.replace(/\/$/, "")}/rooms/${encodeURIComponent(roomId)}/${action}`;
   url.search = "";
   url.hash = "";
   return url.toString();
