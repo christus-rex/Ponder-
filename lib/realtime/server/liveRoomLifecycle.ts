@@ -5,6 +5,11 @@ import {
   type RealtimeKitMeetingControlPlane,
   type RoomMediaProvisioningStore,
 } from "./roomMediaProvisioning";
+import {
+  revokeTrackedMediaSessionsForRoom,
+  type MediaProviderParticipantRevoker,
+  type RoomMediaProviderSessionStore,
+} from "./roomMediaProviderSession";
 
 export type SocialIntent =
   | "talk"
@@ -75,13 +80,21 @@ export async function closeBackendOwnedLiveRoom(
   store: LiveRoomLifecycleStore,
   mediaStore: RoomMediaProvisioningStore,
   controlPlane: RealtimeKitMeetingControlPlane,
+  sessionStore: RoomMediaProviderSessionStore,
+  participantRevoker: MediaProviderParticipantRevoker,
   input: { roomId: string; createdBy: string },
 ): Promise<{ roomId: string; status: "closed" }> {
   const roomId = normalizeId(input.roomId, "Room ID");
   const createdBy = normalizeId(input.createdBy, "Creator ID");
 
   await store.markRoomClosed(roomId, createdBy);
-  await deactivateRealtimeKitMeetingForRoom(mediaStore, controlPlane, roomId);
+  await cleanupClosedRoomMedia(
+    mediaStore,
+    controlPlane,
+    sessionStore,
+    participantRevoker,
+    roomId,
+  );
 
   return { roomId, status: "closed" };
 }
@@ -90,6 +103,8 @@ export async function moderationCloseBackendOwnedLiveRoom(
   store: LiveRoomLifecycleStore,
   mediaStore: RoomMediaProvisioningStore,
   controlPlane: RealtimeKitMeetingControlPlane,
+  sessionStore: RoomMediaProviderSessionStore,
+  participantRevoker: MediaProviderParticipantRevoker,
   input: {
     roomId: string;
     actorId: string;
@@ -117,9 +132,48 @@ export async function moderationCloseBackendOwnedLiveRoom(
     reason,
   });
 
-  await deactivateRealtimeKitMeetingForRoom(mediaStore, controlPlane, roomId);
+  await cleanupClosedRoomMedia(
+    mediaStore,
+    controlPlane,
+    sessionStore,
+    participantRevoker,
+    roomId,
+  );
 
   return { roomId, status: "closed", actionId };
+}
+
+async function cleanupClosedRoomMedia(
+  mediaStore: RoomMediaProvisioningStore,
+  controlPlane: RealtimeKitMeetingControlPlane,
+  sessionStore: RoomMediaProviderSessionStore,
+  participantRevoker: MediaProviderParticipantRevoker,
+  roomId: string,
+): Promise<void> {
+  let participantError: unknown = null;
+  let meetingError: unknown = null;
+
+  try {
+    await revokeTrackedMediaSessionsForRoom(
+      sessionStore,
+      participantRevoker,
+      roomId,
+    );
+  } catch (error) {
+    participantError = error;
+  }
+
+  try {
+    await deactivateRealtimeKitMeetingForRoom(mediaStore, controlPlane, roomId);
+  } catch (error) {
+    meetingError = error;
+  }
+
+  if (participantError || meetingError) {
+    throw new Error(
+      "Provider media cleanup failed after authoritative room closure",
+    );
+  }
 }
 
 export function createSupabaseLiveRoomLifecycleStore(
